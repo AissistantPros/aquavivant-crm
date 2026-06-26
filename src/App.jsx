@@ -2303,6 +2303,11 @@ function computeTareas(leads,currentUser,projectConfig){
           urgency:"urgent",time:timeAgo(l.fechaCita)});
       }
     }
+    if(l.proximoContactoAt&&now>=l.proximoContactoAt&&["nuevo","contactado"].includes(l.stage)){
+      tasks.push({id:`callback_${l.id}`,type:"primer_contacto",title:"Llamada acordada",lead:l.name,leadId:l.id,
+        desc:`Acordaste llamar ${timeAgo(l.proximoContactoAt)}.`,
+        urgency:"urgent",time:timeAgo(l.proximoContactoAt)});
+    }
   });
   return tasks;
 }
@@ -2339,6 +2344,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
         });
       }else if(resultado==="call_later"){
         await updateLeadStage(task.leadId,{
+          proximoContactoAt:fechaLlamada?new Date(fechaLlamada).toISOString():undefined,
           action:"Contacto — pidió llamar después",
           nota:fechaLlamada?`Llamar el ${new Date(fechaLlamada).toLocaleString("es-MX")}`:"",
           by,

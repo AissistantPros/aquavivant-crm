@@ -84,6 +84,7 @@ export async function fetchLeads() {
     plazoDecision: l.plazo_decision ?? null,
     proposito: l.proposito ?? null,
     necesitaCredito: l.necesita_credito ?? null,
+    proximoContactoAt: l.proximo_contacto_at ? new Date(l.proximo_contacto_at).getTime() : null,
     _asesorId: l.asesor_id,
     _brokerId: l.broker_id,
   }));
@@ -93,6 +94,7 @@ export async function updateLeadStage(leadId, {
   stage, fechaCita, lastActivityAt, nota, action, by,
   intentosContacto, intentosNumeroEquivocado,
   presupuestoMin, presupuestoMax, plazoDecision, proposito, necesitaCredito,
+  proximoContactoAt,
 }) {
   const payload = { last_activity_at: lastActivityAt || new Date().toISOString() };
   if (stage !== undefined) payload.stage = stage;
@@ -104,6 +106,7 @@ export async function updateLeadStage(leadId, {
   if (plazoDecision !== undefined) payload.plazo_decision = plazoDecision || null;
   if (proposito !== undefined) payload.proposito = proposito || null;
   if (necesitaCredito !== undefined) payload.necesita_credito = necesitaCredito || null;
+  if (proximoContactoAt !== undefined) payload.proximo_contacto_at = proximoContactoAt;
   const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
   if (error) throw error;
   const { error: histError } = await supabase.from("lead_historia").insert({
