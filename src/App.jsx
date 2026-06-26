@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
-import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor, updateLeadStage } from "./lib/data";
+import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification } from "./lib/data";
 
 const AV = {
   obsidian:"#0d1117",deep:"#111820",surface:"#161e27",card:"#1a2330",
@@ -2281,90 +2281,6 @@ function NewUnitModal({tower,onClose,onSaved}){
   );
 }
 
-// ── NOTIFICACIONES ────────────────────────────────────────────────────────────
-function AdminNotifs({leads,asesores,units,dismissed,dismiss,setView}){
-  const metrics=calcMetrics(leads,units,asesores);
-  const alertUrgentes=dismissed.includes("urgentes")?[]:metrics.urgentes;
-  const alertBloqueos=dismissed.includes("bloqueos")?[]:metrics.bloqueosVencidos;
-  const alertAsesores=metrics.asesoresAtrasados.filter(a=>a.asesor!=="Sin asignar"&&!dismissed.includes(`asesor_${a.asesor}`));
-  const alertSilenciosas=metrics.fuentesSilenciosas.filter(f=>!dismissed.includes(`silenciosa_${f.source}`));
-  const alertBajaCalidad=metrics.fuentesBajaCalidad.filter(f=>!dismissed.includes(`baja_${f.source}`));
-  const sinPendientes=alertUrgentes.length===0&&alertBloqueos.length===0&&alertAsesores.length===0&&alertSilenciosas.length===0&&alertBajaCalidad.length===0;
-  return(
-    <div className="panel">
-      <div className="panel-header"><span>⚡</span><div className="panel-title">Acción Inmediata</div></div>
-      <div className="panel-body">
-        <div className="action-panel" style={{margin:0}}>
-          {sinPendientes?(
-            <div className="action-ok">✓ Todo bajo control — sin pendientes urgentes en este momento</div>
-          ):(
-            <>
-              {alertUrgentes.length>0&&(
-                <div className="action-row">
-                  <div className="action-dot" style={{background:AV.rose}}/>
-                  <div className="action-text">
-                    <strong>{alertUrgentes.length} lead{alertUrgentes.length>1?"s":""}</strong> sin contactar en +30 min
-                    <div className="action-btns">
-                      <button className="btn btn-sm btn-primary" onClick={()=>setView("leads")}>Resolver</button>
-                      <button className="btn btn-sm" onClick={()=>dismiss("urgentes")}>Marcar resuelto</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {alertBloqueos.length>0&&(
-                <div className="action-row">
-                  <div className="action-dot" style={{background:AV.rose}}/>
-                  <div className="action-text">
-                    <strong>{alertBloqueos.length} bloqueo{alertBloqueos.length>1?"s":""} vencido{alertBloqueos.length>1?"s":""}</strong> — unidad{alertBloqueos.length>1?"es":""}: {alertBloqueos.map(u=>u.num).join(", ")}
-                    <div className="action-btns">
-                      <button className="btn btn-sm btn-primary" onClick={()=>setView("inventario")}>Resolver</button>
-                      <button className="btn btn-sm" onClick={()=>dismiss("bloqueos")}>Marcar resuelto</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {alertAsesores.map(a=>(
-                <div className="action-row" key={a.asesor}>
-                  <div className="action-dot" style={{background:AV.amber}}/>
-                  <div className="action-text">
-                    <strong>{a.asesor}</strong> tiene {a.leads.length} lead{a.leads.length>1?"s":""} sin seguimiento hace más de {STALE_HOURS}h
-                    <div className="action-btns">
-                      <button className="btn btn-sm btn-primary" onClick={()=>setView("equipo")}>Ir a Equipo & Turnos</button>
-                      <button className="btn btn-sm" onClick={()=>dismiss(`asesor_${a.asesor}`)}>Marcar resuelto</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {alertSilenciosas.map(f=>(
-                <div className="action-row" key={f.source}>
-                  <div className="action-dot" style={{background:AV.amber}}/>
-                  <div className="action-text">
-                    <strong>{f.label}</strong> lleva {f.dias} días sin generar leads nuevos
-                    <div className="action-btns">
-                      <button className="btn btn-sm" onClick={()=>dismiss(`silenciosa_${f.source}`)}>Enterado</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {alertBajaCalidad.map(f=>(
-                <div className="action-row" key={f.source}>
-                  <div className="action-dot" style={{background:AV.amber}}/>
-                  <div className="action-text">
-                    <strong>{f.label}</strong> — {f.total} leads recibidos, solo {f.pct}% están calificando
-                    <div className="action-btns">
-                      <button className="btn btn-sm" onClick={()=>dismiss(`baja_${f.source}`)}>Enterado</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── ASESOR TAREAS ─────────────────────────────────────────────────────────────
 const PIPELINE_STAGES_SET=new Set(["nuevo","contactado","calificado","visita_agendada","visita_realizada","documentacion","negociacion","apartado","escriturado"]);
 
@@ -2406,6 +2322,93 @@ function computeTareas(leads,currentUser,projectConfig){
     }
   });
   return tasks;
+}
+
+function computeNotifs(leads,units,asesores,metas,role){
+  const notifs=[];
+  const metrics=calcMetrics(leads,units,asesores);
+  const now=Date.now();
+
+  if(role==="admin"){
+    if(metrics.urgentes.length>0)
+      notifs.push({id:"urgentes",tipo:"leads_urgentes",urgency:"urgent",
+        titulo:`${metrics.urgentes.length} lead${metrics.urgentes.length>1?"s":""} sin contactar`,
+        mensaje:`Llevan más de 30 min sin primer contacto.`,action:{label:"Ver leads",view:"leads"}});
+    if(metrics.bloqueosVencidos.length>0)
+      notifs.push({id:"bloqueos",tipo:"bloqueos_vencidos",urgency:"urgent",
+        titulo:`${metrics.bloqueosVencidos.length} bloqueo${metrics.bloqueosVencidos.length>1?"s":""} vencido${metrics.bloqueosVencidos.length>1?"s":""}`,
+        mensaje:`Unidades: ${metrics.bloqueosVencidos.map(u=>u.num).join(", ")}`,action:{label:"Ver inventario",view:"inventario"}});
+    metrics.asesoresAtrasados.filter(a=>a.asesor!=="Sin asignar").forEach(a=>
+      notifs.push({id:`asesor_${a.asesor}`,tipo:"asesor_atrasado",urgency:"normal",
+        titulo:`${a.asesor} — ${a.leads.length} lead${a.leads.length>1?"s":""} sin seguimiento`,
+        mensaje:`Sin actividad hace más de ${STALE_HOURS}h.`,action:{label:"Ver equipo",view:"equipo"}}));
+    metrics.fuentesSilenciosas.forEach(f=>
+      notifs.push({id:`silenciosa_${f.source}`,tipo:"fuente_silenciosa",urgency:"normal",
+        titulo:`${f.label} — sin leads nuevos`,mensaje:`Lleva ${f.dias} días sin generar leads.`,action:null}));
+    metrics.fuentesBajaCalidad.forEach(f=>
+      notifs.push({id:`baja_${f.source}`,tipo:"baja_calidad",urgency:"normal",
+        titulo:`${f.label} — baja calificación`,mensaje:`${f.total} leads recibidos, solo ${f.pct}% calificando.`,action:null}));
+  }
+
+  // Vendedor: citas en las próximas 24h (recordatorio pre-visita, distinto del post-visita task)
+  if(role==="vendedor"||role==="admin"){
+    leads.filter(l=>l.stage==="visita_agendada"&&l.fechaCita).forEach(l=>{
+      const diff=l.fechaCita-now;
+      if(diff>0&&diff<=24*3600000)
+        notifs.push({id:`cita_prox_${l.id}`,tipo:"cita_proxima",urgency:"normal",
+          titulo:`Visita mañana: ${l.name}`,
+          mensaje:`${new Date(l.fechaCita).toLocaleString("es-MX",{weekday:"short",hour:"2-digit",minute:"2-digit"})}`,
+          action:null});
+    });
+  }
+
+  return notifs;
+}
+
+// ── PANEL DE NOTIFICACIONES ───────────────────────────────────────────────────
+function NotifPanel({computedNotifs,storedNotifs,onMarkRead,setView}){
+  const urgentes=computedNotifs.filter(n=>n.urgency==="urgent");
+  const normales=computedNotifs.filter(n=>n.urgency==="normal");
+  const sinNada=computedNotifs.length===0&&storedNotifs.length===0;
+
+  function NotifRow({n,computed}){
+    const color=n.urgency==="urgent"?AV.rose:AV.amber;
+    return(
+      <div className="notif-item" style={{borderLeft:`3px solid ${computed?color:"#2dd4bf"}`}}>
+        <div className="notif-dot" style={{background:computed?color:"#2dd4bf",marginTop:2}}/>
+        <div className="notif-text" style={{flex:1}}>
+          <strong>{n.titulo}</strong>
+          {n.mensaje&&<div style={{marginTop:2}}>{n.mensaje}</div>}
+          {!computed&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:2}}>{timeAgo(new Date(n.created_at).getTime())}</div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+          {computed&&n.action&&(
+            <button className="btn btn-sm btn-primary" onClick={()=>setView(n.action.view)}>{n.action.label}</button>
+          )}
+          {!computed&&(
+            <button className="btn btn-sm" onClick={()=>onMarkRead(n.id)}>OK</button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="content-inner">
+      {sinNada?(
+        <div className="action-ok">✓ Sin notificaciones pendientes</div>
+      ):(
+        <div className="notif-list">
+          {urgentes.length>0&&<div style={{fontSize:"var(--fs-meta)",fontWeight:600,color:AV.rose,padding:"4px 0 2px"}}>🔴 Urgentes</div>}
+          {urgentes.map(n=><NotifRow key={n.id} n={n} computed/>)}
+          {normales.length>0&&<div style={{fontSize:"var(--fs-meta)",fontWeight:600,color:AV.muted,padding:"8px 0 2px"}}>Accionables</div>}
+          {normales.map(n=><NotifRow key={n.id} n={n} computed/>)}
+          {storedNotifs.length>0&&<div style={{fontSize:"var(--fs-meta)",fontWeight:600,color:AV.muted,padding:"8px 0 2px"}}>Informativas</div>}
+          {storedNotifs.map(n=><NotifRow key={n.id} n={n} computed={false}/>)}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
@@ -2670,6 +2673,7 @@ export default function AquaVivantCRM(){
   const [ficha,setFicha]=useState(null);
   const [dismissedAlerts,setDismissedAlerts]=useState([]);
   const dismissAlert=(key)=>setDismissedAlerts(d=>[...d,key]);
+  const [storedNotifs,setStoredNotifs]=useState([]);
   const [showMobileSidebar,setShowMobileSidebar]=useState(false);
   const [showProfileModal,setShowProfileModal]=useState(false);
   const [showChat,setShowChat]=useState(false);
@@ -2702,36 +2706,46 @@ export default function AquaVivantCRM(){
   },[]);
 
   const refreshData=async()=>{
-    const [l,a,u,t,ms,pc,g]=await Promise.all([fetchLeads(),fetchAsesores(),fetchUnits(),fetchTowers(),fetchMarketingSpend(),fetchProjectConfig(),fetchGoals()]);
-    setLeads(l);setAsesores(a);setUnits(u);setTowers(t);setMarketingSpend(ms);setProjectConfig(pc);setGoals(g);
+    const [l,a,u,t,ms,pc,g,sn]=await Promise.all([fetchLeads(),fetchAsesores(),fetchUnits(),fetchTowers(),fetchMarketingSpend(),fetchProjectConfig(),fetchGoals(),fetchNotifications()]);
+    setLeads(l);setAsesores(a);setUnits(u);setTowers(t);setMarketingSpend(ms);setProjectConfig(pc);setGoals(g);setStoredNotifs(sn);
   };
 
   useEffect(()=>{
-    if(!currentUser){setLeads([]);setAsesores([]);setUnits([]);setTowers([]);setMarketingSpend([]);setProjectConfig({});setGoals([]);return;}
+    if(!currentUser){setLeads([]);setAsesores([]);setUnits([]);setTowers([]);setMarketingSpend([]);setProjectConfig({});setGoals([]);setStoredNotifs([]);return;}
     let active=true;
     setDataLoading(true);
     refreshData().finally(()=>{if(active)setDataLoading(false);});
     return()=>{active=false;};
   },[currentUser?.id]);
 
+  // Poll stored notifications every 60 seconds
+  useEffect(()=>{
+    if(!currentUser)return;
+    const id=setInterval(()=>fetchNotifications().then(setStoredNotifs).catch(()=>{}),60000);
+    return()=>clearInterval(id);
+  },[currentUser?.id]);
+
   useEffect(()=>setView(role==="admin"?"dashboard":"tareas"),[role]);
 
-  // Badge de notificaciones: conteo real de alertas activas (descontando descartadas)
-  const _nm=calcMetrics(leads,units,asesores);
-  const notifCount=(
-    (dismissedAlerts.includes("urgentes")||_nm.urgentes.length===0?0:1)+
-    (dismissedAlerts.includes("bloqueos")||_nm.bloqueosVencidos.length===0?0:1)+
-    _nm.asesoresAtrasados.filter(a=>a.asesor!=="Sin asignar"&&!dismissedAlerts.includes(`asesor_${a.asesor}`)).length+
-    _nm.fuentesSilenciosas.filter(f=>!dismissedAlerts.includes(`silenciosa_${f.source}`)).length+
-    _nm.fuentesBajaCalidad.filter(f=>!dismissedAlerts.includes(`baja_${f.source}`)).length
-  );
+  const computedNotifs=computeNotifs(leads,units,asesores,goals,role);
+  const notifCount=computedNotifs.length+storedNotifs.length;
+  const notifBadge=notifCount>0?String(notifCount):null;
+
+  async function handleMarkRead(id){
+    await markNotificationRead(id);
+    setStoredNotifs(s=>s.filter(n=>n.id!==id));
+  }
 
   const adminNav=[
-    {s:"Principal"},{id:"dashboard",label:"Dashboard",icon:"◈"},{id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifCount>0?String(notifCount):null},
+    {s:"Principal"},{id:"dashboard",label:"Dashboard",icon:"◈"},{id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifBadge},
     {s:"Pipeline"},{id:"pipeline",label:"Pipeline",icon:"⟶"},{id:"leads",label:"Todos los leads",icon:"◉"},
     {s:"Administración"},{id:"equipo",label:"Equipo & Turnos",icon:"⚡"},{id:"inventario",label:"Inventario",icon:"🏗️"},
   ];
-  const vendedorNav=[{s:"Mi día"},{id:"tareas",label:"Mis Tareas",icon:"✓"},{id:"mis_leads",label:"Mis Leads",icon:"◉"},{s:"Información"},{id:"inventario",label:"Inventario",icon:"🏗️"}];
+  const vendedorNav=[
+    {s:"Mi día"},{id:"tareas",label:"Mis Tareas",icon:"✓"},{id:"mis_leads",label:"Mis Leads",icon:"◉"},
+    {id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifBadge},
+    {s:"Información"},{id:"inventario",label:"Inventario",icon:"🏗️"},
+  ];
   const navItems=role==="admin"?adminNav:vendedorNav;
   const titles={dashboard:"Dashboard",notificaciones:"Notificaciones",pipeline:"Pipeline de ventas",leads:"Todos los leads",equipo:"Equipo & Asignaciones",inventario:"Inventario de unidades",tareas:"Mis tareas del día",mis_leads:"Mis leads"};
 
@@ -2751,11 +2765,16 @@ export default function AquaVivantCRM(){
       }
     }
     await insertLead({name:f.name,phone:f.phone,source:f.source,campaign:f.campaign,interes:f.interes,notes:f.notes,asesorId:asignado?.id||null,authorName:currentUser?.name||"Sistema"});
+    if(asignado?.id&&asignado.id!==currentUser?.id)
+      await insertNotification(asignado.id,{tipo:"lead_asignado",titulo:`Nuevo lead asignado: ${f.name}`,mensaje:`Fuente: ${f.source||"Manual"}`}).catch(()=>{});
     await refreshData();
   }
 
   async function handleReassignLead(leadId,newAsesorId,oldName,newName){
     await reassignLeadAsesor(leadId,newAsesorId,oldName,newName,currentUser?.name||"Admin");
+    const asesorDest=asesores.find(a=>a.id===newAsesorId);
+    if(asesorDest)
+      await insertNotification(asesorDest.id,{tipo:"lead_reasignado",titulo:`Lead reasignado a ti`,mensaje:`${oldName?`De ${oldName} → `:""}${newName}`}).catch(()=>{});
     await refreshData();
     setFicha(f=>f?{...f,asesor:newName,_asesorId:newAsesorId}:f);
   }
@@ -2836,7 +2855,7 @@ export default function AquaVivantCRM(){
             {role==="admin"&&view==="leads"          &&<AdminLeads leads={leads} onOpen={setFicha}/>}
             {role==="admin"&&view==="equipo"         &&<AdminEquipo leads={leads} asesores={asesores} refreshData={refreshData} onOpen={setFicha}/>}
             {role==="admin"&&view==="inventario"     &&<AdminInventario units={units} towers={towers} refreshData={refreshData}/>}
-            {role==="admin"&&view==="notificaciones" &&<AdminNotifs leads={leads} asesores={asesores} units={units} dismissed={dismissedAlerts} dismiss={dismissAlert} setView={setView}/>}
+            {view==="notificaciones"&&<NotifPanel computedNotifs={computedNotifs} storedNotifs={storedNotifs} onMarkRead={handleMarkRead} setView={setView}/>}
             {(role==="vendedor"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser} projectConfig={projectConfig} refreshData={refreshData}/>}
             {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="mis_leads" &&<AsesorMisLeads leads={leads} onOpen={setFicha} currentUser={currentUser}/>}
             {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={role==="vendedor"&&!!currentUser?.canBlockUnits} refreshData={refreshData}/>}

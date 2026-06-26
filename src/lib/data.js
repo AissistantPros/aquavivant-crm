@@ -331,3 +331,25 @@ export async function deleteGoal(id) {
   const { error } = await supabase.from('goals').delete().eq('id', id);
   if (error) throw error;
 }
+
+export async function fetchNotifications() {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('leida', false)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function markNotificationRead(id) {
+  const { error } = await supabase.from('notifications').update({ leida: true }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function insertNotification(destinatarioId, { tipo, titulo, mensaje }) {
+  const { error } = await supabase.from('notifications').insert({
+    destinatario_id: destinatarioId, tipo, titulo, mensaje: mensaje || null,
+  });
+  if (error) throw error;
+}
