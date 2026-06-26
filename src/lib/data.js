@@ -76,9 +76,22 @@ export async function fetchLeads() {
       .slice()
       .sort((a, b) => new Date(a.ts) - new Date(b.ts))
       .map((h) => ({ ts: new Date(h.ts).getTime(), action: h.action, note: h.note, by: h.by })),
+    fechaCita: l.fecha_cita ? new Date(l.fecha_cita).getTime() : null,
     _asesorId: l.asesor_id,
     _brokerId: l.broker_id,
   }));
+}
+
+export async function updateLeadStage(leadId, { stage, fechaCita, lastActivityAt, nota, action, by }) {
+  const payload = { last_activity_at: lastActivityAt || new Date().toISOString() };
+  if (stage !== undefined) payload.stage = stage;
+  if (fechaCita !== undefined) payload.fecha_cita = fechaCita;
+  const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
+  if (error) throw error;
+  const { error: histError } = await supabase.from("lead_historia").insert({
+    lead_id: leadId, action, note: nota || null, by: by || null,
+  });
+  if (histError) throw histError;
 }
 
 export async function fetchUnits() {

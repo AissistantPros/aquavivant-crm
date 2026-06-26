@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
-import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor } from "./lib/data";
+import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor, updateLeadStage } from "./lib/data";
 
 const AV = {
   obsidian:"#0d1117",deep:"#111820",surface:"#161e27",card:"#1a2330",
@@ -1021,16 +1021,41 @@ function EliminarModal({asesor,leads,asesores,onClose,onConfirm,onViewLead}){
 // ── CERRAR TAREA ──────────────────────────────────────────────────────────────
 function CloseTaskModal({task,onClose,onComplete}){
   const [step,setStep]=useState(0);
-  const [ans,setAns]=useState({contacted:null,said:null,next:null,status:null});
-  const base=[{q:`¿Lograste contactar a ${task.lead}?`,opts:[{l:"✅ Sí, contestó",v:"yes"},{l:"📵 No contestó",v:"no"},{l:"❌ Número equivocado",v:"wrong"}],k:"contacted"}];
-  const yesSteps=ans.contacted==="yes"?[
-    {q:"¿Cuál es su situación?",opts:[{l:"Le interesa mucho",v:"interested"},{l:"Quiere más info",v:"info"},{l:"Comparando",v:"comparing"},{l:"Quiere visitar",v:"visit"}],k:"said"},
-    {q:"Siguiente paso",opts:[{l:"Agendar visita",v:"schedule"},{l:"Mandar info",v:"info"},{l:"Llamada follow-up",v:"call"},{l:"Enviar propuesta",v:"proposal"}],k:"next"},
-    {q:"¿Cambias el status?",opts:[{l:"→ Contactado",v:"contactado"},{l:"→ Calificado",v:"calificado"},{l:"→ Visita Agendada",v:"visita_agendada"},{l:"Sin cambio",v:"no_change"}],k:"status"},
-  ]:[];
-  const allSteps=[...base,...yesSteps];
-  const cur=allSteps[step];
+  const [ans,setAns]=useState({});
+  const [saving,setSaving]=useState(false);
+
+  // Steps vary by task type
+  const steps=task.type==="post_visita"?[
+    {q:`¿${task.lead} asistió a la visita?`,opts:[{l:"✅ Sí asistió",v:"yes"},{l:"❌ No asistió",v:"no"}],k:"asistio"},
+    ...(ans.asistio==="yes"?[
+      {q:"¿Cómo resultó?",opts:[{l:"Muy interesado, quiere propuesta",v:"interested"},{l:"Le gustó, necesita tiempo",v:"thinking"},{l:"Quiere visitar otra vez",v:"revisit"}],k:"resultado"},
+      {q:"Siguiente paso",opts:[{l:"Enviar propuesta",v:"propuesta"},{l:"Follow-up en 48h",v:"followup"},{l:"Agendar 2da visita",v:"revisita"}],k:"next"},
+    ]:[])
+  ]:task.type==="followup"?[
+    {q:`¿Pudiste comunicarte con ${task.lead}?`,opts:[{l:"✅ Sí, hablamos",v:"yes"},{l:"📵 No contestó",v:"no"}],k:"contacted"},
+    ...(ans.contacted==="yes"?[
+      {q:"¿Cómo está el interés?",opts:[{l:"Sigue interesado",v:"active"},{l:"Enfriando",v:"cold"},{l:"Quiere avanzar",v:"forward"}],k:"interes"},
+    ]:[])
+  ]:[
+    // primer_contacto (default)
+    {q:`¿Lograste contactar a ${task.lead}?`,opts:[{l:"✅ Sí, contestó",v:"yes"},{l:"📵 No contestó",v:"no"},{l:"❌ Número equivocado",v:"wrong"}],k:"contacted"},
+    ...(ans.contacted==="yes"?[
+      {q:"¿Cuál es su situación?",opts:[{l:"Le interesa mucho",v:"interested"},{l:"Quiere más info",v:"info"},{l:"Comparando",v:"comparing"},{l:"Quiere visitar",v:"visit"}],k:"said"},
+      {q:"Siguiente paso",opts:[{l:"Agendar visita",v:"schedule"},{l:"Mandar info",v:"info"},{l:"Llamada follow-up",v:"call"},{l:"Enviar propuesta",v:"proposal"}],k:"next"},
+      {q:"¿Cambias el status?",opts:[{l:"→ Contactado",v:"contactado"},{l:"→ Calificado",v:"calificado"},{l:"→ Visita Agendada",v:"visita_agendada"},{l:"Sin cambio",v:"no_change"}],k:"status"},
+    ]:[])
+  ];
+
+  const cur=steps[step];
+  const done=step>=steps.length;
   const red=[{l:"🚫 Ya compró con otro",v:"perdido-competencia"},{l:"😐 No le interesó",v:"perdido-no-interes"},{l:"💸 No le alcanza",v:"repechaje-presupuesto"},{l:"⏳ No ahorita (6+ meses)",v:"remarketing-timing"}];
+
+  async function handleComplete(){
+    setSaving(true);
+    try{ await onComplete(ans); onClose(); }
+    catch(e){ alert("Error al guardar: "+e.message); setSaving(false); }
+  }
+
   return(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal slide-in" onClick={e=>e.stopPropagation()}>
@@ -1040,23 +1065,27 @@ function CloseTaskModal({task,onClose,onComplete}){
           <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
             <div className="flow-question">{cur.q}</div>
             <div className="flow-options">
-              {cur.opts.map(o=><button key={o.v} className={`flow-opt ${ans[cur.k]===o.v?"selected":""}`} onClick={()=>{setAns(a=>({...a,[cur.k]:o.v}));setTimeout(()=>setStep(s=>s+1),200);}}>{o.l}</button>)}
+              {cur.opts.map(o=><button key={o.v} className={`flow-opt ${ans[cur.k]===o.v?"selected":""}`}
+                onClick={()=>{setAns(a=>({...a,[cur.k]:o.v}));setTimeout(()=>setStep(s=>s+1),200);}}>{o.l}</button>)}
             </div>
           </div>
         )}
-        {step>=allSteps.length&&(
+        {done&&(
           <div style={{background:AV.surface,borderRadius:10,padding:16}}>
             <div className="flow-question" style={{color:AV.rose}}>⚠️ Zona Roja — si aplica:</div>
             <div className="flow-options">
-              {red.map(o=><button key={o.v} className={`flow-opt red ${ans.status===o.v?"selected":""}`} onClick={()=>setAns(a=>({...a,status:o.v}))}>{o.l}</button>)}
+              {red.map(o=><button key={o.v} className={`flow-opt red ${ans.zonaRoja===o.v?"selected":""}`}
+                onClick={()=>setAns(a=>({...a,zonaRoja:a.zonaRoja===o.v?null:o.v}))}>{o.l}</button>)}
             </div>
-            {ans.contacted==="no"&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:10}}>→ Tarea de 2do intento generada para mañana.</div>}
+            {ans.contacted==="no"&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:10}}>→ Tarea de 2do intento generada.</div>}
             {ans.contacted==="wrong"&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:10}}>→ Admin recibirá aviso de número incorrecto.</div>}
           </div>
         )}
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>Cancelar</button>
-          {step>=allSteps.length&&<button className="btn btn-primary" onClick={()=>{onComplete(ans);onClose();}}>Marcar como hecha ✓</button>}
+          {done&&<button className="btn btn-primary" disabled={saving} onClick={handleComplete}>
+            {saving?"Guardando…":"Marcar como hecha ✓"}
+          </button>}
         </div>
       </div>
     </div>
@@ -2104,13 +2133,95 @@ function AdminNotifs({leads,asesores,units,dismissed,dismiss,setView}){
 }
 
 // ── ASESOR TAREAS ─────────────────────────────────────────────────────────────
-function AsesorTareas({leads,onOpen}){
+const PIPELINE_STAGES_SET=new Set(["nuevo","contactado","calificado","visita_agendada","visita_realizada","documentacion","negociacion","apartado","escriturado"]);
+
+function computeTareas(leads,currentUser,projectConfig){
+  const now=Date.now();
+  const primerContactoMs=(Number(projectConfig?.crm_tiempo_primer_contacto_min??30))*60000;
+  const seguimientoMs=(Number(projectConfig?.crm_intervalo_intentos_horas??24))*3600000;
+  const isAdmin=currentUser?.role==="admin";
+  const myLeads=leads.filter(l=>{
+    if(!PIPELINE_STAGES_SET.has(l.stage))return false;
+    if(isAdmin)return true;
+    return l._asesorId===currentUser?.id;
+  });
+  const tasks=[];
+  myLeads.forEach(l=>{
+    const sinAct=now-l.lastActivity;
+    if(l.stage==="nuevo"&&sinAct>=primerContactoMs){
+      tasks.push({id:`contacto_${l.id}`,type:"primer_contacto",title:"Primer contacto",lead:l.name,leadId:l.id,
+        desc:`Entró hace ${timeAgo(l.created)} por ${SOURCES[l.source]?.label||l.source}.`,
+        urgency:"urgent",time:timeAgo(l.lastActivity)});
+    }
+    if(["contactado","calificado","negociacion"].includes(l.stage)&&sinAct>=seguimientoMs){
+      tasks.push({id:`seguimiento_${l.id}`,type:"followup",title:"Seguimiento",lead:l.name,leadId:l.id,
+        desc:`Sin actividad hace ${timeAgo(l.lastActivity)}.`,
+        urgency:"normal",time:timeAgo(l.lastActivity)});
+    }
+    if(l.stage==="visita_agendada"&&l.fechaCita){
+      const diff=now-l.fechaCita;
+      if(diff>=12*3600000&&diff<=72*3600000){
+        tasks.push({id:`postvisita_${l.id}`,type:"post_visita",title:"Post-visita",lead:l.name,leadId:l.id,
+          desc:`La visita fue hace ${timeAgo(l.fechaCita)}.`,
+          urgency:"urgent",time:timeAgo(l.fechaCita)});
+      }
+    }
+  });
+  return tasks;
+}
+
+function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
   const [activeTask,setActiveTask]=useState(null);
-  const [done,setDone]=useState([]);
-  const tasks=TASKS.filter(t=>!done.includes(t.id));
-  const urgent=tasks.filter(t=>t.urgency==="urgent");
-  const normal=tasks.filter(t=>t.urgency==="normal");
-  const future=tasks.filter(t=>t.urgency==="future");
+  const [completed,setCompleted]=useState(new Set());
+  const allTasks=computeTareas(leads,currentUser,projectConfig).filter(t=>!completed.has(t.id));
+  const urgent=allTasks.filter(t=>t.urgency==="urgent");
+  const normal=allTasks.filter(t=>t.urgency==="normal");
+
+  async function handleComplete(ans){
+    const task=activeTask;
+    const now=new Date().toISOString();
+    let newStage=undefined;
+    let newFechaCita=undefined;
+    let action="";
+    let nota="";
+
+    if(task.type==="primer_contacto"){
+      if(ans.contacted==="yes"){
+        newStage=ans.status&&ans.status!=="no_change"?ans.status:"contactado";
+        action="Primer contacto realizado";
+        nota=`Situación: ${ans.said||"—"} · Siguiente: ${ans.next||"—"}`;
+      }else if(ans.contacted==="no"){
+        action="Intento de contacto — sin respuesta";
+        nota="No contestó";
+      }else{
+        action="Número incorrecto";
+        nota="Número equivocado reportado";
+      }
+    }else if(task.type==="post_visita"){
+      if(ans.asistio==="yes"){
+        newStage="visita_realizada";
+        action="Visita realizada";
+        nota=ans.resultado||"";
+      }else{
+        newStage="calificado";
+        newFechaCita=null;
+        action="Cliente no asistió a visita";
+        nota="Fecha de cita limpiada";
+      }
+    }else{
+      action="Seguimiento realizado";
+      nota=ans.contacted==="yes"?`Interés: ${ans.interes||"—"}`:"Sin respuesta";
+    }
+    if(ans.zonaRoja){
+      const[newS,razon]=ans.zonaRoja.split("-");
+      newStage=newS==="remarketing"?"repechaje":newS;
+      nota+=(nota?" · ":"")+`Zona roja: ${razon}`;
+    }
+    await updateLeadStage(task.leadId,{stage:newStage,fechaCita:newFechaCita,lastActivityAt:now,action,nota,by:currentUser?.name||"Asesor"});
+    setCompleted(s=>new Set([...s,task.id]));
+    await refreshData();
+  }
+
   function TaskSec({title,color,items}){
     if(!items.length)return null;
     return(
@@ -2120,7 +2231,7 @@ function AsesorTareas({leads,onOpen}){
           <div className="tasks-list">
             {items.map(t=>(
               <div key={t.id} className={`task-item ${t.urgency}`} onClick={()=>setActiveTask(t)}>
-                <div className="task-icon">{TASK_ICONS[t.type]}</div>
+                <div className="task-icon">{TASK_ICONS[t.type]||"📋"}</div>
                 <div className="task-info">
                   <div className="task-title">{t.title}</div>
                   <button className="task-lead-link" onClick={e=>{e.stopPropagation();const l=leads.find(l=>l.id===t.leadId);if(l)onOpen(l);}}>Ver ficha de {t.lead} →</button>
@@ -2139,14 +2250,14 @@ function AsesorTareas({leads,onOpen}){
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-label">Urgentes</div><div className="stat-value stat-danger">{urgent.length}</div><div className="stat-sub">Contactar ahora</div></div>
         <div className="stat-card"><div className="stat-label">Para hoy</div><div className="stat-value stat-warn">{normal.length}</div></div>
-        <div className="stat-card"><div className="stat-label">Próximas</div><div className="stat-value">{future.length}</div></div>
-        <div className="stat-card"><div className="stat-label">Completadas</div><div className="stat-value stat-accent">{done.length}</div><div className="stat-sub">Hoy</div></div>
+        <div className="stat-card"><div className="stat-label">Completadas</div><div className="stat-value stat-accent">{completed.size}</div><div className="stat-sub">Esta sesión</div></div>
+        <div className="stat-card"><div className="stat-label">Total activas</div><div className="stat-value">{allTasks.length}</div></div>
       </div>
-      <TaskSec title="🔴 Urgentes — Contactar ahora" color={AV.rose} items={urgent}/>
+      {allTasks.length===0&&<div className="action-ok">✓ Sin tareas pendientes por ahora</div>}
+      <TaskSec title="🔴 Urgentes — Atender ahora" color={AV.rose} items={urgent}/>
       <TaskSec title="Para hoy" color={AV.text} items={normal}/>
-      <TaskSec title="Próximas" color={AV.muted} items={future}/>
-      {done.length>0&&<div style={{padding:"10px 0",fontSize:"var(--fs-meta)",color:AV.muted,textAlign:"center"}}>✓ {done.length} tarea{done.length>1?"s":""} completada{done.length>1?"s":""} hoy</div>}
-      {activeTask&&<CloseTaskModal task={activeTask} onClose={()=>setActiveTask(null)} onComplete={()=>setDone(d=>[...d,activeTask.id])}/>}
+      {completed.size>0&&<div style={{padding:"10px 0",fontSize:"var(--fs-meta)",color:AV.muted,textAlign:"center"}}>✓ {completed.size} tarea{completed.size>1?"s":""} completada{completed.size>1?"s":""}</div>}
+      {activeTask&&<CloseTaskModal task={activeTask} onClose={()=>setActiveTask(null)} onComplete={handleComplete}/>}
     </>
   );
 }
@@ -2433,7 +2544,7 @@ export default function AquaVivantCRM(){
             {role==="admin"&&view==="equipo"         &&<AdminEquipo leads={leads} asesores={asesores} refreshData={refreshData} onOpen={setFicha}/>}
             {role==="admin"&&view==="inventario"     &&<AdminInventario units={units} towers={towers} refreshData={refreshData}/>}
             {role==="admin"&&view==="notificaciones" &&<AdminNotifs leads={leads} asesores={asesores} units={units} dismissed={dismissedAlerts} dismiss={dismissAlert} setView={setView}/>}
-            {(role==="vendedor"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser}/>}
+            {(role==="vendedor"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser} projectConfig={projectConfig} refreshData={refreshData}/>}
             {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="mis_leads" &&<AsesorMisLeads leads={leads} onOpen={setFicha} currentUser={currentUser}/>}
             {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={role==="vendedor"&&!!currentUser?.canBlockUnits} refreshData={refreshData}/>}
             </>)}
