@@ -353,3 +353,11 @@ export async function insertNotification(destinatarioId, { tipo, titulo, mensaje
   });
   if (error) throw error;
 }
+
+export async function notifyAdmins({ tipo, titulo, mensaje }) {
+  const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+  if (!admins?.length) return;
+  await Promise.all(admins.map(a =>
+    supabase.from('notifications').insert({ destinatario_id: a.id, tipo, titulo, mensaje: mensaje || null })
+  ));
+}

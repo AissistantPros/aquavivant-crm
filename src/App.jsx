@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
-import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification } from "./lib/data";
+import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification, notifyAdmins } from "./lib/data";
 
 const AV = {
   obsidian:"#0d1117",deep:"#111820",surface:"#161e27",card:"#1a2330",
@@ -1037,7 +1037,9 @@ function CloseTaskModal({task,lead,projectConfig,onClose,onComplete}){
     return <FollowupModal task={task} lead={lead} onClose={onClose} saving={saving} onSave={save}/>;
   }
 
-  // post_visita: step-based flow — TODO: expand to full qualification form (same pattern as FollowupModal)
+  if(task.type==="post_visita"){
+    return <PostVisitaModal task={task} lead={lead} onClose={onClose} saving={saving} onSave={save}/>;
+  }
   return <StepTaskModal task={task} onClose={onClose} saving={saving} onSave={save}/>;
 }
 
@@ -1263,6 +1265,135 @@ function FollowupModal({task,lead,onClose,saving,onSave}){
           {resultado!==null&&(
             <button className="btn btn-primary" disabled={saving||!canSave}
               onClick={()=>onSave({resultado,animo,acordado,notas,agendaVisita,fechaVisita,fechaLlamada})}>
+              {saving?"Guardando…":"Guardar ✓"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PostVisitaModal({task,lead,onClose,saving,onSave}){
+  const [asistio,setAsistio]=useState(null);
+  // Campos para "sí asistió"
+  const [modelo,setModelo]=useState("");
+  const [nivelInteres,setNivelInteres]=useState("");
+  const [comentarios,setComentarios]=useState("");
+  const [preguntas,setPreguntas]=useState("");
+  const [objeciones,setObjeciones]=useState([]);
+  const [hayCotizacion,setHayCotizacion]=useState("");
+  const [enQueQuedaron,setEnQueQuedaron]=useState("");
+  // Campos para "no asistió"
+  const [motivo,setMotivo]=useState("");
+  const [nuevaFecha,setNuevaFecha]=useState("");
+
+  const OBJECIONES=["Precio","Tamaño","Ubicación","Financiamiento","Otra"];
+
+  function toggleObjecion(o){
+    setObjeciones(prev=>prev.includes(o)?prev.filter(x=>x!==o):[...prev,o]);
+  }
+
+  const canSave=asistio==="yes"?!!nivelInteres&&!!enQueQuedaron:asistio==="no";
+
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal slide-in" style={{maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-title">Post-visita</div>
+        <div className="modal-sub"><span style={{color:AV.teal}}>{task.lead}</span></div>
+
+        {asistio===null?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
+            <div className="flow-question">¿{task.lead} asistió a la visita?</div>
+            <div className="flow-options" style={{flexDirection:"column"}}>
+              <button className="flow-opt" style={{textAlign:"left"}} onClick={()=>setAsistio("yes")}>✅ Sí asistió</button>
+              <button className="flow-opt" style={{textAlign:"left"}} onClick={()=>setAsistio("no")}>❌ No asistió</button>
+            </div>
+          </div>
+        ):asistio==="yes"?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12,display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{fontWeight:600,color:AV.teal}}>Detalle de la visita</div>
+
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Modelo / unidad que le interesó</div>
+              <input className="input" placeholder="ej. Torre A — Depto 304, modelo Comfort…" value={modelo} onChange={e=>setModelo(e.target.value)}/>
+            </div>
+
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:6}}>Nivel de interés *</div>
+              <div className="flow-options" style={{marginTop:0,flexWrap:"wrap"}}>
+                {["Muy interesado","Interesado","Dudoso","Frío"].map(v=>(
+                  <button key={v} className={`flow-opt${nivelInteres===v?" selected":""}`} onClick={()=>setNivelInteres(v)}>{v}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Comentarios sobre el proyecto</div>
+              <textarea className="input" rows={2} style={{resize:"vertical"}} placeholder="¿Qué le gustó? ¿Qué le preocupó?" value={comentarios} onChange={e=>setComentarios(e.target.value)}/>
+            </div>
+
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Preguntas que realizó</div>
+              <textarea className="input" rows={2} style={{resize:"vertical"}} placeholder="Preguntas del cliente durante la visita…" value={preguntas} onChange={e=>setPreguntas(e.target.value)}/>
+            </div>
+
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:8}}>Objeciones planteadas</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                {OBJECIONES.map(o=>(
+                  <button key={o} onClick={()=>toggleObjecion(o)}
+                    style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid",fontSize:"var(--fs-meta)",cursor:"pointer",
+                      borderColor:objeciones.includes(o)?AV.teal:"var(--border)",
+                      background:objeciones.includes(o)?AV.teal+"22":"transparent",
+                      color:objeciones.includes(o)?AV.teal:"var(--text-muted)"}}>
+                    {o}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:6}}>¿Se habló de propuesta o cotización?</div>
+              <div className="flow-options" style={{marginTop:0}}>
+                {["Sí","No"].map(v=>(
+                  <button key={v} className={`flow-opt${hayCotizacion===v?" selected":""}`} onClick={()=>setHayCotizacion(v)}>{v}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>¿En qué quedaron? *</div>
+              <textarea className="input" rows={2} style={{resize:"vertical"}} placeholder="Siguiente paso acordado con el cliente…" value={enQueQuedaron} onChange={e=>setEnQueQuedaron(e.target.value)}/>
+            </div>
+          </div>
+        ):(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12,display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{fontWeight:600,color:AV.teal}}>No asistió</div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Motivo (opcional)</div>
+              <input className="input" placeholder="ej. Canceló por trabajo, no dio aviso…" value={motivo} onChange={e=>setMotivo(e.target.value)}/>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>¿Se agendó nueva fecha?</div>
+              <input className="input" type="datetime-local" value={nuevaFecha} onChange={e=>setNuevaFecha(e.target.value)}/>
+            </div>
+            {!nuevaFecha&&(
+              <div style={{fontSize:"var(--fs-meta)",color:AV.orange,padding:"8px 12px",background:AV.orange+"18",borderRadius:8}}>
+                Sin nueva fecha — el lead regresará a etapa de calificado y se notificará al admin.
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="modal-actions">
+          {asistio===null
+            ?<button className="btn" onClick={onClose}>Cancelar</button>
+            :<button className="btn" onClick={()=>setAsistio(null)}>← Atrás</button>
+          }
+          {asistio!==null&&(
+            <button className="btn btn-primary" disabled={saving||!canSave}
+              onClick={()=>onSave({asistio,modelo,nivelInteres,comentarios,preguntas,objeciones,hayCotizacion,enQueQuedaron,motivo,nuevaFecha})}>
               {saving?"Guardando…":"Guardar ✓"}
             </button>
           )}
@@ -2544,11 +2675,40 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
       }
     }else if(task.type==="post_visita"){
       if(ans.asistio==="yes"){
-        await updateLeadStage(task.leadId,{stage:"visita_realizada",action:"Visita realizada",nota:ans.resultado||"",by});
+        const notaVisita=[
+          ans.modelo&&`Modelo: ${ans.modelo}`,
+          ans.nivelInteres&&`Interés: ${ans.nivelInteres}`,
+          ans.hayCotizacion&&`Cotización: ${ans.hayCotizacion}`,
+          ans.objeciones?.length&&`Objeciones: ${ans.objeciones.join(", ")}`,
+          ans.comentarios&&`Comentarios: ${ans.comentarios}`,
+          ans.preguntas&&`Preguntas: ${ans.preguntas}`,
+          ans.enQueQuedaron&&`Siguiente paso: ${ans.enQueQuedaron}`,
+        ].filter(Boolean).join(" | ");
+        await updateLeadStage(task.leadId,{stage:"visita_realizada",action:"Visita realizada",nota:notaVisita,by});
+      }else if(ans.nuevaFecha){
+        await updateLeadStage(task.leadId,{
+          stage:"visita_agendada",
+          fechaCita:new Date(ans.nuevaFecha).getTime(),
+          action:"Visita reagendada",
+          nota:ans.motivo?`No asistió — motivo: ${ans.motivo}. Nueva fecha: ${new Date(ans.nuevaFecha).toLocaleString("es-MX")}`:`Nueva fecha: ${new Date(ans.nuevaFecha).toLocaleString("es-MX")}`,
+          by,
+        });
       }else{
-        await updateLeadStage(task.leadId,{stage:"calificado",fechaCita:null,action:"Cliente no asistió a visita",nota:"Fecha de cita limpiada",by});
+        await updateLeadStage(task.leadId,{
+          stage:"calificado",
+          fechaCita:null,
+          action:"Cliente no asistió a visita — sin nueva fecha",
+          nota:ans.motivo?`Motivo: ${ans.motivo}`:"Sin motivo registrado",
+          by,
+        });
+        const leadName=task.lead;
+        const asesorName=currentUser?.name||by;
+        await notifyAdmins({
+          tipo:"visita_no_asistio",
+          titulo:`${leadName} no acudió a la visita con ${asesorName}`,
+          mensaje:"Sin nueva fecha agendada. Requiere seguimiento.",
+        }).catch(()=>{});
       }
-      if(ans.zonaRoja){const[s,r]=ans.zonaRoja.split("-");await updateLeadStage(task.leadId,{stage:s==="remarketing"?"repechaje":s,action:"Zona roja",nota:r,by});}
     }
     setCompleted(s=>new Set([...s,task.id]));
     await refreshData();
