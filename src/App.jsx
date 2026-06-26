@@ -2330,35 +2330,37 @@ function computeNotifs(leads,units,asesores,metas,role){
   const now=Date.now();
 
   if(role==="admin"){
+    // Accionables urgentes — requieren acción inmediata
     if(metrics.urgentes.length>0)
-      notifs.push({id:"urgentes",tipo:"leads_urgentes",urgency:"urgent",
+      notifs.push({id:"urgentes",tipo:"leads_urgentes",urgency:"urgent",kind:"accionable",
         titulo:`${metrics.urgentes.length} lead${metrics.urgentes.length>1?"s":""} sin contactar`,
         mensaje:`Llevan más de 30 min sin primer contacto.`,action:{label:"Ver leads",view:"leads"}});
     if(metrics.bloqueosVencidos.length>0)
-      notifs.push({id:"bloqueos",tipo:"bloqueos_vencidos",urgency:"urgent",
+      notifs.push({id:"bloqueos",tipo:"bloqueos_vencidos",urgency:"urgent",kind:"accionable",
         titulo:`${metrics.bloqueosVencidos.length} bloqueo${metrics.bloqueosVencidos.length>1?"s":""} vencido${metrics.bloqueosVencidos.length>1?"s":""}`,
         mensaje:`Unidades: ${metrics.bloqueosVencidos.map(u=>u.num).join(", ")}`,action:{label:"Ver inventario",view:"inventario"}});
+    // Accionables normales — tienen destino de navegación
     metrics.asesoresAtrasados.filter(a=>a.asesor!=="Sin asignar").forEach(a=>
-      notifs.push({id:`asesor_${a.asesor}`,tipo:"asesor_atrasado",urgency:"normal",
+      notifs.push({id:`asesor_${a.asesor}`,tipo:"asesor_atrasado",urgency:"normal",kind:"accionable",
         titulo:`${a.asesor} — ${a.leads.length} lead${a.leads.length>1?"s":""} sin seguimiento`,
         mensaje:`Sin actividad hace más de ${STALE_HOURS}h.`,action:{label:"Ver equipo",view:"equipo"}}));
+    // Informativas — solo aviso, sin acción específica, se pueden descartar por sesión
     metrics.fuentesSilenciosas.forEach(f=>
-      notifs.push({id:`silenciosa_${f.source}`,tipo:"fuente_silenciosa",urgency:"normal",
-        titulo:`${f.label} — sin leads nuevos`,mensaje:`Lleva ${f.dias} días sin generar leads.`,action:null}));
+      notifs.push({id:`silenciosa_${f.source}`,tipo:"fuente_silenciosa",urgency:"normal",kind:"informativa",
+        titulo:`${f.label} — sin leads nuevos`,mensaje:`Lleva ${f.dias} días sin generar leads.`}));
     metrics.fuentesBajaCalidad.forEach(f=>
-      notifs.push({id:`baja_${f.source}`,tipo:"baja_calidad",urgency:"normal",
-        titulo:`${f.label} — baja calificación`,mensaje:`${f.total} leads recibidos, solo ${f.pct}% calificando.`,action:null}));
+      notifs.push({id:`baja_${f.source}`,tipo:"baja_calidad",urgency:"normal",kind:"informativa",
+        titulo:`${f.label} — baja calificación`,mensaje:`${f.total} leads recibidos, solo ${f.pct}% calificando.`}));
   }
 
-  // Vendedor: citas en las próximas 24h (recordatorio pre-visita, distinto del post-visita task)
+  // Recordatorio pre-visita (24h antes) — informativa, sin acción directa
   if(role==="vendedor"||role==="admin"){
     leads.filter(l=>l.stage==="visita_agendada"&&l.fechaCita).forEach(l=>{
       const diff=l.fechaCita-now;
       if(diff>0&&diff<=24*3600000)
-        notifs.push({id:`cita_prox_${l.id}`,tipo:"cita_proxima",urgency:"normal",
+        notifs.push({id:`cita_prox_${l.id}`,tipo:"cita_proxima",urgency:"normal",kind:"informativa",
           titulo:`Visita mañana: ${l.name}`,
-          mensaje:`${new Date(l.fechaCita).toLocaleString("es-MX",{weekday:"short",hour:"2-digit",minute:"2-digit"})}`,
-          action:null});
+          mensaje:`${new Date(l.fechaCita).toLocaleString("es-MX",{weekday:"short",hour:"2-digit",minute:"2-digit"})}`});
     });
   }
 
@@ -2366,29 +2368,56 @@ function computeNotifs(leads,units,asesores,metas,role){
 }
 
 // ── PANEL DE NOTIFICACIONES ───────────────────────────────────────────────────
-function NotifPanel({computedNotifs,storedNotifs,onMarkRead,setView}){
-  const urgentes=computedNotifs.filter(n=>n.urgency==="urgent");
-  const normales=computedNotifs.filter(n=>n.urgency==="normal");
+function NotifPanel({computedNotifs,storedNotifs,onMarkRead,onDismiss,setView,role}){
+  const urgentes=computedNotifs.filter(n=>n.kind==="accionable"&&n.urgency==="urgent");
+  const accionables=computedNotifs.filter(n=>n.kind==="accionable"&&n.urgency!=="urgent");
+  const informativas=computedNotifs.filter(n=>n.kind==="informativa");
   const sinNada=computedNotifs.length===0&&storedNotifs.length===0;
 
-  function NotifRow({n,computed}){
-    const color=n.urgency==="urgent"?AV.rose:AV.amber;
+  function SecLabel({text,color}){
+    return<div style={{fontSize:"var(--fs-meta)",fontWeight:600,color:color||AV.muted,padding:"8px 0 4px",marginTop:4}}>{text}</div>;
+  }
+
+  function ComputedRow({n}){
+    const isUrgent=n.urgency==="urgent";
+    const color=isUrgent?AV.rose:AV.amber;
     return(
-      <div className="notif-item" style={{borderLeft:`3px solid ${computed?color:"#2dd4bf"}`}}>
-        <div className="notif-dot" style={{background:computed?color:"#2dd4bf",marginTop:2}}/>
+      <div className="notif-item" style={{borderLeft:`3px solid ${color}`}}>
+        <div className="notif-dot" style={{background:color,marginTop:2}}/>
         <div className="notif-text" style={{flex:1}}>
           <strong>{n.titulo}</strong>
           {n.mensaje&&<div style={{marginTop:2}}>{n.mensaje}</div>}
-          {!computed&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:2}}>{timeAgo(new Date(n.created_at).getTime())}</div>}
         </div>
-        <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
-          {computed&&n.action&&(
-            <button className="btn btn-sm btn-primary" onClick={()=>setView(n.action.view)}>{n.action.label}</button>
-          )}
-          {!computed&&(
-            <button className="btn btn-sm" onClick={()=>onMarkRead(n.id)}>OK</button>
-          )}
+        {n.action&&(
+          <button className="btn btn-sm btn-primary" style={{flexShrink:0}} onClick={()=>setView(n.action.view)}>{n.action.label}</button>
+        )}
+      </div>
+    );
+  }
+
+  function InformativaRow({n}){
+    return(
+      <div className="notif-item" style={{borderLeft:`3px solid ${AV.border}`,opacity:.85}}>
+        <div className="notif-dot" style={{background:AV.muted,marginTop:2}}/>
+        <div className="notif-text" style={{flex:1}}>
+          <strong>{n.titulo}</strong>
+          {n.mensaje&&<div style={{marginTop:2}}>{n.mensaje}</div>}
         </div>
+        <button className="btn btn-sm" style={{flexShrink:0}} onClick={()=>onDismiss(n.id)}>Entendido</button>
+      </div>
+    );
+  }
+
+  function StoredRow({n}){
+    return(
+      <div className="notif-item" style={{borderLeft:`3px solid ${AV.teal}`}}>
+        <div className="notif-dot" style={{background:AV.teal,marginTop:2}}/>
+        <div className="notif-text" style={{flex:1}}>
+          <strong>{n.titulo}</strong>
+          {n.mensaje&&<div style={{marginTop:2}}>{n.mensaje}</div>}
+          <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:2}}>{timeAgo(new Date(n.created_at).getTime())}</div>
+        </div>
+        <button className="btn btn-sm" style={{flexShrink:0}} onClick={()=>onMarkRead(n.id)}>OK</button>
       </div>
     );
   }
@@ -2399,12 +2428,19 @@ function NotifPanel({computedNotifs,storedNotifs,onMarkRead,setView}){
         <div className="action-ok">✓ Sin notificaciones pendientes</div>
       ):(
         <div className="notif-list">
-          {urgentes.length>0&&<div style={{fontSize:"var(--fs-meta)",fontWeight:600,color:AV.rose,padding:"4px 0 2px"}}>🔴 Urgentes</div>}
-          {urgentes.map(n=><NotifRow key={n.id} n={n} computed/>)}
-          {normales.length>0&&<div style={{fontSize:"var(--fs-meta)",fontWeight:600,color:AV.muted,padding:"8px 0 2px"}}>Accionables</div>}
-          {normales.map(n=><NotifRow key={n.id} n={n} computed/>)}
-          {storedNotifs.length>0&&<div style={{fontSize:"var(--fs-meta)",fontWeight:600,color:AV.muted,padding:"8px 0 2px"}}>Informativas</div>}
-          {storedNotifs.map(n=><NotifRow key={n.id} n={n} computed={false}/>)}
+          {urgentes.length>0&&<SecLabel text="🔴 Urgentes" color={AV.rose}/>}
+          {urgentes.map(n=><ComputedRow key={n.id} n={n}/>)}
+          {accionables.length>0&&<SecLabel text="Accionables"/>}
+          {accionables.map(n=><ComputedRow key={n.id} n={n}/>)}
+          {informativas.length>0&&<SecLabel text="Informativas — hoy"/>}
+          {informativas.map(n=><InformativaRow key={n.id} n={n}/>)}
+          {storedNotifs.length>0&&<SecLabel text="Recibidas"/>}
+          {storedNotifs.map(n=><StoredRow key={n.id} n={n}/>)}
+        </div>
+      )}
+      {role==="admin"&&(
+        <div style={{marginTop:16,paddingTop:12,borderTop:`1px solid ${AV.border}`,display:"flex",justifyContent:"flex-end"}}>
+          <button className="btn btn-sm" style={{color:AV.muted,fontSize:"var(--fs-meta)"}} onClick={()=>setView("config_notifs")}>⚙️ Administrar notificaciones</button>
         </div>
       )}
     </div>
@@ -2727,7 +2763,8 @@ export default function AquaVivantCRM(){
 
   useEffect(()=>setView(role==="admin"?"dashboard":"tareas"),[role]);
 
-  const computedNotifs=computeNotifs(leads,units,asesores,goals,role);
+  const allComputedNotifs=computeNotifs(leads,units,asesores,goals,role);
+  const computedNotifs=allComputedNotifs.filter(n=>!dismissedAlerts.includes(n.id));
   const notifCount=computedNotifs.length+storedNotifs.length;
   const notifBadge=notifCount>0?String(notifCount):null;
 
@@ -2855,7 +2892,7 @@ export default function AquaVivantCRM(){
             {role==="admin"&&view==="leads"          &&<AdminLeads leads={leads} onOpen={setFicha}/>}
             {role==="admin"&&view==="equipo"         &&<AdminEquipo leads={leads} asesores={asesores} refreshData={refreshData} onOpen={setFicha}/>}
             {role==="admin"&&view==="inventario"     &&<AdminInventario units={units} towers={towers} refreshData={refreshData}/>}
-            {view==="notificaciones"&&<NotifPanel computedNotifs={computedNotifs} storedNotifs={storedNotifs} onMarkRead={handleMarkRead} setView={setView}/>}
+            {view==="notificaciones"&&<NotifPanel computedNotifs={computedNotifs} storedNotifs={storedNotifs} onMarkRead={handleMarkRead} onDismiss={dismissAlert} setView={setView} role={role}/>}
             {(role==="vendedor"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser} projectConfig={projectConfig} refreshData={refreshData}/>}
             {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="mis_leads" &&<AsesorMisLeads leads={leads} onOpen={setFicha} currentUser={currentUser}/>}
             {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={role==="vendedor"&&!!currentUser?.canBlockUnits} refreshData={refreshData}/>}
