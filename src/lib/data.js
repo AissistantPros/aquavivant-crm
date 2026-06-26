@@ -77,15 +77,33 @@ export async function fetchLeads() {
       .sort((a, b) => new Date(a.ts) - new Date(b.ts))
       .map((h) => ({ ts: new Date(h.ts).getTime(), action: h.action, note: h.note, by: h.by })),
     fechaCita: l.fecha_cita ? new Date(l.fecha_cita).getTime() : null,
+    intentosContacto: l.intentos_contacto ?? 0,
+    intentosNumeroEquivocado: l.intentos_numero_equivocado ?? 0,
+    presupuestoMin: l.presupuesto_min != null ? Number(l.presupuesto_min) : null,
+    presupuestoMax: l.presupuesto_max != null ? Number(l.presupuesto_max) : null,
+    plazoDecision: l.plazo_decision ?? null,
+    proposito: l.proposito ?? null,
+    necesitaCredito: l.necesita_credito ?? null,
     _asesorId: l.asesor_id,
     _brokerId: l.broker_id,
   }));
 }
 
-export async function updateLeadStage(leadId, { stage, fechaCita, lastActivityAt, nota, action, by }) {
+export async function updateLeadStage(leadId, {
+  stage, fechaCita, lastActivityAt, nota, action, by,
+  intentosContacto, intentosNumeroEquivocado,
+  presupuestoMin, presupuestoMax, plazoDecision, proposito, necesitaCredito,
+}) {
   const payload = { last_activity_at: lastActivityAt || new Date().toISOString() };
   if (stage !== undefined) payload.stage = stage;
   if (fechaCita !== undefined) payload.fecha_cita = fechaCita;
+  if (intentosContacto !== undefined) payload.intentos_contacto = intentosContacto;
+  if (intentosNumeroEquivocado !== undefined) payload.intentos_numero_equivocado = intentosNumeroEquivocado;
+  if (presupuestoMin !== undefined) payload.presupuesto_min = presupuestoMin || null;
+  if (presupuestoMax !== undefined) payload.presupuesto_max = presupuestoMax || null;
+  if (plazoDecision !== undefined) payload.plazo_decision = plazoDecision || null;
+  if (proposito !== undefined) payload.proposito = proposito || null;
+  if (necesitaCredito !== undefined) payload.necesita_credito = necesitaCredito || null;
   const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
   if (error) throw error;
   const { error: histError } = await supabase.from("lead_historia").insert({

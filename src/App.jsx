@@ -1019,43 +1019,180 @@ function EliminarModal({asesor,leads,asesores,onClose,onConfirm,onViewLead}){
 }
 
 // ── CERRAR TAREA ──────────────────────────────────────────────────────────────
-function CloseTaskModal({task,onClose,onComplete}){
-  const [step,setStep]=useState(0);
-  const [ans,setAns]=useState({});
+const EMPTY_CAL={presupuestoMin:"",presupuestoMax:"",plazoDecision:"",tipoDepto:"",necesitaCredito:"",proposito:"",visitoOtros:"",agendaCita:"",fechaCita:""};
+
+function CloseTaskModal({task,lead,projectConfig,onClose,onComplete}){
   const [saving,setSaving]=useState(false);
 
-  // Steps vary by task type
+  async function save(payload){
+    setSaving(true);
+    try{ await onComplete(payload); onClose(); }
+    catch(e){ alert("Error al guardar: "+e.message); setSaving(false); }
+  }
+
+  if(task.type==="primer_contacto"){
+    return <PrimerContactoModal task={task} lead={lead} projectConfig={projectConfig} onClose={onClose} saving={saving} onSave={save}/>;
+  }
+
+  // post_visita / followup: step-based flow
+  return <StepTaskModal task={task} onClose={onClose} saving={saving} onSave={save}/>;
+}
+
+function PrimerContactoModal({task,lead,projectConfig,onClose,saving,onSave}){
+  const [resultado,setResultado]=useState(null);
+  const [cal,setCal]=useState(EMPTY_CAL);
+  const [fechaLlamada,setFechaLlamada]=useState("");
+  const maxIntentos=Number(projectConfig?.crm_max_intentos_contacto??7);
+  const intentosActuales=lead?.intentosContacto??0;
+  const puedeIncontactable=intentosActuales>=maxIntentos;
+  const sig=intentosActuales+1;
+
+  const opciones=[
+    {v:"talked",   l:"✅ Sí, contestó y pudimos hablar"},
+    {v:"call_later",l:"🕐 Contestó pero pidió llamar después"},
+    {v:"no_answer", l:"📵 No contestó"},
+    {v:"wrong_number",l:"❌ Número equivocado / fuera de servicio"},
+    ...(puedeIncontactable?[{v:"unreachable",l:"🚫 Incontactable — archivar lead",red:true}]:[]),
+  ];
+
+  const calValid=cal.plazoDecision&&cal.necesitaCredito&&cal.proposito&&(cal.agendaCita!=="Sí"||(cal.agendaCita==="Sí"&&cal.fechaCita));
+  const canSave=resultado==="talked"?calValid:resultado==="call_later"?!!fechaLlamada:resultado!==null;
+
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal slide-in" style={{maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-title">Primer Contacto</div>
+        <div className="modal-sub"><span style={{color:AV.teal}}>{task.lead}</span>{intentosActuales>0&&<span style={{color:AV.muted}}> · {intentosActuales} intento{intentosActuales>1?"s":""} previo{intentosActuales>1?"s":""}</span>}</div>
+
+        {resultado===null?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
+            <div className="flow-question">¿Cuál fue el resultado?</div>
+            <div className="flow-options" style={{flexDirection:"column"}}>
+              {opciones.map(o=>(
+                <button key={o.v} className={`flow-opt${o.red?" red":""}`} style={{textAlign:"left"}} onClick={()=>setResultado(o.v)}>{o.l}</button>
+              ))}
+            </div>
+          </div>
+        ):resultado==="talked"?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12,display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{fontWeight:600,color:AV.teal}}>Información de la conversación</div>
+            <div className="two-col">
+              <div>
+                <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Presupuesto mínimo ($)</div>
+                <input className="input" type="number" placeholder="ej. 2500000" value={cal.presupuestoMin} onChange={e=>setCal(f=>({...f,presupuestoMin:e.target.value}))}/>
+              </div>
+              <div>
+                <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Presupuesto máximo ($)</div>
+                <input className="input" type="number" placeholder="ej. 4000000" value={cal.presupuestoMax} onChange={e=>setCal(f=>({...f,presupuestoMax:e.target.value}))}/>
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Plazo para decidir *</div>
+              <select className="input" value={cal.plazoDecision} onChange={e=>setCal(f=>({...f,plazoDecision:e.target.value}))}>
+                <option value="">Seleccionar…</option>
+                <option value="inmediato">Inmediato</option>
+                <option value="1_3_meses">1–3 meses</option>
+                <option value="3_6_meses">3–6 meses</option>
+                <option value="mas_6_meses">Más de 6 meses</option>
+              </select>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Tipo de departamento de interés</div>
+              <input className="input" placeholder="ej. 2 recámaras, estudio, penthouse…" value={cal.tipoDepto} onChange={e=>setCal(f=>({...f,tipoDepto:e.target.value}))}/>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:6}}>¿Necesita crédito hipotecario? *</div>
+              <div className="flow-options" style={{marginTop:0}}>
+                {["Sí","No","Ya está precalificado"].map(v=>(
+                  <button key={v} className={`flow-opt${cal.necesitaCredito===v?" selected":""}`} onClick={()=>setCal(f=>({...f,necesitaCredito:v}))}>{v}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:6}}>¿Para vivir o invertir? *</div>
+              <div className="flow-options" style={{marginTop:0}}>
+                {["Para vivir","Para invertir","Ambos"].map(v=>(
+                  <button key={v} className={`flow-opt${cal.proposito===v?" selected":""}`} onClick={()=>setCal(f=>({...f,proposito:v}))}>{v}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:6}}>¿Ya visitó otros proyectos?</div>
+              <div className="flow-options" style={{marginTop:0}}>
+                {["Sí","No"].map(v=>(
+                  <button key={v} className={`flow-opt${cal.visitoOtros===v?" selected":""}`} onClick={()=>setCal(f=>({...f,visitoOtros:v}))}>{v}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:6}}>¿Quiere agendar visita?</div>
+              <div className="flow-options" style={{marginTop:0}}>
+                {["Sí","No"].map(v=>(
+                  <button key={v} className={`flow-opt${cal.agendaCita===v?" selected":""}`} onClick={()=>setCal(f=>({...f,agendaCita:v}))}>{v}</button>
+                ))}
+              </div>
+              {cal.agendaCita==="Sí"&&(
+                <input className="input" style={{marginTop:8}} type="datetime-local" value={cal.fechaCita} onChange={e=>setCal(f=>({...f,fechaCita:e.target.value}))}/>
+              )}
+            </div>
+          </div>
+        ):resultado==="call_later"?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
+            <div className="flow-question">¿Cuándo llamar?</div>
+            <input className="input" type="datetime-local" value={fechaLlamada} onChange={e=>setFechaLlamada(e.target.value)} style={{marginTop:8}}/>
+          </div>
+        ):resultado==="no_answer"?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
+            <div style={{color:AV.muted,fontSize:"var(--fs-meta)"}}>
+              Se registrará intento #{sig} de {maxIntentos}.
+              {sig>=maxIntentos&&<span style={{color:AV.amber}}> El siguiente contacto puede marcarse como Incontactable.</span>}
+            </div>
+          </div>
+        ):resultado==="wrong_number"?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
+            <div style={{color:AV.muted,fontSize:"var(--fs-meta)"}}>Se registrará número equivocado. El admin recibirá aviso.</div>
+          </div>
+        ):(
+          <div style={{background:"rgba(251,113,133,.08)",border:"1px solid rgba(251,113,133,.3)",borderRadius:10,padding:16,marginBottom:12}}>
+            <div style={{color:AV.rose,fontWeight:600,marginBottom:6}}>⚠️ Confirmar acción irreversible</div>
+            <div style={{color:AV.muted,fontSize:"var(--fs-meta)"}}>El lead pasará a <strong>perdido</strong> tras {intentosActuales} intentos. Queda registrado en el historial.</div>
+          </div>
+        )}
+
+        <div className="modal-actions">
+          {resultado===null
+            ?<button className="btn" onClick={onClose}>Cancelar</button>
+            :<button className="btn" onClick={()=>setResultado(null)}>← Atrás</button>
+          }
+          {resultado!==null&&(
+            <button className="btn btn-primary" disabled={saving||!canSave}
+              onClick={()=>onSave({resultado,cal,fechaLlamada})}>
+              {saving?"Guardando…":"Guardar ✓"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepTaskModal({task,onClose,saving,onSave}){
+  const [step,setStep]=useState(0);
+  const [ans,setAns]=useState({});
   const steps=task.type==="post_visita"?[
     {q:`¿${task.lead} asistió a la visita?`,opts:[{l:"✅ Sí asistió",v:"yes"},{l:"❌ No asistió",v:"no"}],k:"asistio"},
     ...(ans.asistio==="yes"?[
       {q:"¿Cómo resultó?",opts:[{l:"Muy interesado, quiere propuesta",v:"interested"},{l:"Le gustó, necesita tiempo",v:"thinking"},{l:"Quiere visitar otra vez",v:"revisit"}],k:"resultado"},
       {q:"Siguiente paso",opts:[{l:"Enviar propuesta",v:"propuesta"},{l:"Follow-up en 48h",v:"followup"},{l:"Agendar 2da visita",v:"revisita"}],k:"next"},
     ]:[])
-  ]:task.type==="followup"?[
+  ]:[
     {q:`¿Pudiste comunicarte con ${task.lead}?`,opts:[{l:"✅ Sí, hablamos",v:"yes"},{l:"📵 No contestó",v:"no"}],k:"contacted"},
     ...(ans.contacted==="yes"?[
       {q:"¿Cómo está el interés?",opts:[{l:"Sigue interesado",v:"active"},{l:"Enfriando",v:"cold"},{l:"Quiere avanzar",v:"forward"}],k:"interes"},
     ]:[])
-  ]:[
-    // primer_contacto (default)
-    {q:`¿Lograste contactar a ${task.lead}?`,opts:[{l:"✅ Sí, contestó",v:"yes"},{l:"📵 No contestó",v:"no"},{l:"❌ Número equivocado",v:"wrong"}],k:"contacted"},
-    ...(ans.contacted==="yes"?[
-      {q:"¿Cuál es su situación?",opts:[{l:"Le interesa mucho",v:"interested"},{l:"Quiere más info",v:"info"},{l:"Comparando",v:"comparing"},{l:"Quiere visitar",v:"visit"}],k:"said"},
-      {q:"Siguiente paso",opts:[{l:"Agendar visita",v:"schedule"},{l:"Mandar info",v:"info"},{l:"Llamada follow-up",v:"call"},{l:"Enviar propuesta",v:"proposal"}],k:"next"},
-      {q:"¿Cambias el status?",opts:[{l:"→ Contactado",v:"contactado"},{l:"→ Calificado",v:"calificado"},{l:"→ Visita Agendada",v:"visita_agendada"},{l:"Sin cambio",v:"no_change"}],k:"status"},
-    ]:[])
   ];
-
   const cur=steps[step];
   const done=step>=steps.length;
-  const red=[{l:"🚫 Ya compró con otro",v:"perdido-competencia"},{l:"😐 No le interesó",v:"perdido-no-interes"},{l:"💸 No le alcanza",v:"repechaje-presupuesto"},{l:"⏳ No ahorita (6+ meses)",v:"remarketing-timing"}];
-
-  async function handleComplete(){
-    setSaving(true);
-    try{ await onComplete(ans); onClose(); }
-    catch(e){ alert("Error al guardar: "+e.message); setSaving(false); }
-  }
-
   return(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal slide-in" onClick={e=>e.stopPropagation()}>
@@ -1074,16 +1211,16 @@ function CloseTaskModal({task,onClose,onComplete}){
           <div style={{background:AV.surface,borderRadius:10,padding:16}}>
             <div className="flow-question" style={{color:AV.rose}}>⚠️ Zona Roja — si aplica:</div>
             <div className="flow-options">
-              {red.map(o=><button key={o.v} className={`flow-opt red ${ans.zonaRoja===o.v?"selected":""}`}
-                onClick={()=>setAns(a=>({...a,zonaRoja:a.zonaRoja===o.v?null:o.v}))}>{o.l}</button>)}
+              {[{l:"🚫 Ya compró con otro",v:"perdido-competencia"},{l:"😐 No le interesó",v:"perdido-no-interes"},{l:"💸 No le alcanza",v:"repechaje-presupuesto"},{l:"⏳ No ahorita (6+ meses)",v:"remarketing-timing"}].map(o=>(
+                <button key={o.v} className={`flow-opt red ${ans.zonaRoja===o.v?"selected":""}`}
+                  onClick={()=>setAns(a=>({...a,zonaRoja:a.zonaRoja===o.v?null:o.v}))}>{o.l}</button>
+              ))}
             </div>
-            {ans.contacted==="no"&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:10}}>→ Tarea de 2do intento generada.</div>}
-            {ans.contacted==="wrong"&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:10}}>→ Admin recibirá aviso de número incorrecto.</div>}
           </div>
         )}
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>Cancelar</button>
-          {done&&<button className="btn btn-primary" disabled={saving} onClick={handleComplete}>
+          {done&&<button className="btn btn-primary" disabled={saving} onClick={()=>onSave(ans)}>
             {saving?"Guardando…":"Marcar como hecha ✓"}
           </button>}
         </div>
@@ -2179,45 +2316,68 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
 
   async function handleComplete(ans){
     const task=activeTask;
+    const lead=leads.find(l=>l.id===task.leadId);
     const now=new Date().toISOString();
-    let newStage=undefined;
-    let newFechaCita=undefined;
-    let action="";
-    let nota="";
+    const by=currentUser?.name||"Asesor";
+    const maxIntentos=Number(projectConfig?.crm_max_intentos_contacto??7);
 
     if(task.type==="primer_contacto"){
-      if(ans.contacted==="yes"){
-        newStage=ans.status&&ans.status!=="no_change"?ans.status:"contactado";
-        action="Primer contacto realizado";
-        nota=`Situación: ${ans.said||"—"} · Siguiente: ${ans.next||"—"}`;
-      }else if(ans.contacted==="no"){
-        action="Intento de contacto — sin respuesta";
-        nota="No contestó";
-      }else{
-        action="Número incorrecto";
-        nota="Número equivocado reportado";
+      const{resultado,cal,fechaLlamada}=ans;
+      if(resultado==="talked"){
+        const agendoCita=cal.agendaCita==="Sí";
+        await updateLeadStage(task.leadId,{
+          stage:agendoCita?"visita_agendada":"calificado",
+          fechaCita:agendoCita&&cal.fechaCita?new Date(cal.fechaCita).toISOString():agendoCita?undefined:null,
+          presupuestoMin:cal.presupuestoMin?Number(cal.presupuestoMin):undefined,
+          presupuestoMax:cal.presupuestoMax?Number(cal.presupuestoMax):undefined,
+          plazoDecision:cal.plazoDecision||undefined,
+          proposito:cal.proposito||undefined,
+          necesitaCredito:cal.necesitaCredito||undefined,
+          action:"Primera conversación — lead calificado",
+          nota:`Presupuesto: $${cal.presupuestoMin||"?"}–$${cal.presupuestoMax||"?"} · Plazo: ${cal.plazoDecision||"—"} · ${cal.proposito||"—"}${cal.tipoDepto?` · Interés: ${cal.tipoDepto}`:""}`,
+          by,
+        });
+      }else if(resultado==="call_later"){
+        await updateLeadStage(task.leadId,{
+          action:"Contacto — pidió llamar después",
+          nota:fechaLlamada?`Llamar el ${new Date(fechaLlamada).toLocaleString("es-MX")}`:"",
+          by,
+        });
+      }else if(resultado==="no_answer"){
+        const intentos=(lead?.intentosContacto??0)+1;
+        await updateLeadStage(task.leadId,{
+          intentosContacto:intentos,
+          action:"Intento de contacto — sin respuesta",
+          nota:`Intento ${intentos} de ${maxIntentos}`,
+          by,
+        });
+      }else if(resultado==="wrong_number"){
+        const intentos=(lead?.intentosNumeroEquivocado??0)+1;
+        await updateLeadStage(task.leadId,{
+          intentosNumeroEquivocado:intentos,
+          action:"Número equivocado / fuera de servicio",
+          nota:`Reporte #${intentos}`,
+          by,
+        });
+      }else if(resultado==="unreachable"){
+        await updateLeadStage(task.leadId,{
+          stage:"perdido",
+          action:"Lead marcado como incontactable",
+          nota:`${lead?.intentosContacto??0} intentos fallidos`,
+          by,
+        });
       }
     }else if(task.type==="post_visita"){
       if(ans.asistio==="yes"){
-        newStage="visita_realizada";
-        action="Visita realizada";
-        nota=ans.resultado||"";
+        await updateLeadStage(task.leadId,{stage:"visita_realizada",action:"Visita realizada",nota:ans.resultado||"",by});
       }else{
-        newStage="calificado";
-        newFechaCita=null;
-        action="Cliente no asistió a visita";
-        nota="Fecha de cita limpiada";
+        await updateLeadStage(task.leadId,{stage:"calificado",fechaCita:null,action:"Cliente no asistió a visita",nota:"Fecha de cita limpiada",by});
       }
+      if(ans.zonaRoja){const[s,r]=ans.zonaRoja.split("-");await updateLeadStage(task.leadId,{stage:s==="remarketing"?"repechaje":s,action:"Zona roja",nota:r,by});}
     }else{
-      action="Seguimiento realizado";
-      nota=ans.contacted==="yes"?`Interés: ${ans.interes||"—"}`:"Sin respuesta";
+      await updateLeadStage(task.leadId,{action:"Seguimiento realizado",nota:ans.contacted==="yes"?`Interés: ${ans.interes||"—"}`:"Sin respuesta",by});
+      if(ans.zonaRoja){const[s,r]=ans.zonaRoja.split("-");await updateLeadStage(task.leadId,{stage:s==="remarketing"?"repechaje":s,action:"Zona roja",nota:r,by});}
     }
-    if(ans.zonaRoja){
-      const[newS,razon]=ans.zonaRoja.split("-");
-      newStage=newS==="remarketing"?"repechaje":newS;
-      nota+=(nota?" · ":"")+`Zona roja: ${razon}`;
-    }
-    await updateLeadStage(task.leadId,{stage:newStage,fechaCita:newFechaCita,lastActivityAt:now,action,nota,by:currentUser?.name||"Asesor"});
     setCompleted(s=>new Set([...s,task.id]));
     await refreshData();
   }
@@ -2257,7 +2417,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
       <TaskSec title="🔴 Urgentes — Atender ahora" color={AV.rose} items={urgent}/>
       <TaskSec title="Para hoy" color={AV.text} items={normal}/>
       {completed.size>0&&<div style={{padding:"10px 0",fontSize:"var(--fs-meta)",color:AV.muted,textAlign:"center"}}>✓ {completed.size} tarea{completed.size>1?"s":""} completada{completed.size>1?"s":""}</div>}
-      {activeTask&&<CloseTaskModal task={activeTask} onClose={()=>setActiveTask(null)} onComplete={handleComplete}/>}
+      {activeTask&&<CloseTaskModal task={activeTask} lead={leads.find(l=>l.id===activeTask.leadId)} projectConfig={projectConfig} onClose={()=>setActiveTask(null)} onComplete={handleComplete}/>}
     </>
   );
 }
