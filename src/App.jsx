@@ -2333,6 +2333,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
         await updateLeadStage(task.leadId,{
           stage:agendoCita?"visita_agendada":"calificado",
           fechaCita:agendoCita&&cal.fechaCita?new Date(cal.fechaCita).toISOString():agendoCita?undefined:null,
+          proximoContactoAt:null,
           presupuestoMin:cal.presupuestoMin?Number(cal.presupuestoMin):undefined,
           presupuestoMax:cal.presupuestoMax?Number(cal.presupuestoMax):undefined,
           plazoDecision:cal.plazoDecision||undefined,
@@ -2344,7 +2345,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
         });
       }else if(resultado==="call_later"){
         await updateLeadStage(task.leadId,{
-          proximoContactoAt:fechaLlamada?new Date(fechaLlamada).toISOString():undefined,
+          proximoContactoAt:fechaLlamada?new Date(fechaLlamada).toISOString():null,
           action:"Contacto — pidió llamar después",
           nota:fechaLlamada?`Llamar el ${new Date(fechaLlamada).toLocaleString("es-MX")}`:"",
           by,
@@ -2353,6 +2354,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
         const intentos=(lead?.intentosContacto??0)+1;
         await updateLeadStage(task.leadId,{
           intentosContacto:intentos,
+          proximoContactoAt:null,
           action:"Intento de contacto — sin respuesta",
           nota:`Intento ${intentos} de ${maxIntentos}`,
           by,
@@ -2361,6 +2363,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
         const intentos=(lead?.intentosNumeroEquivocado??0)+1;
         await updateLeadStage(task.leadId,{
           intentosNumeroEquivocado:intentos,
+          proximoContactoAt:null,
           action:"Número equivocado / fuera de servicio",
           nota:`Reporte #${intentos}`,
           by,
@@ -2368,6 +2371,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
       }else if(resultado==="unreachable"){
         await updateLeadStage(task.leadId,{
           stage:"perdido",
+          proximoContactoAt:null,
           action:"Lead marcado como incontactable",
           nota:`${lead?.intentosContacto??0} intentos fallidos`,
           by,
