@@ -1033,8 +1033,11 @@ function CloseTaskModal({task,lead,projectConfig,onClose,onComplete}){
   if(task.type==="primer_contacto"){
     return <PrimerContactoModal task={task} lead={lead} projectConfig={projectConfig} onClose={onClose} saving={saving} onSave={save}/>;
   }
+  if(task.type==="followup"){
+    return <FollowupModal task={task} lead={lead} onClose={onClose} saving={saving} onSave={save}/>;
+  }
 
-  // post_visita / followup: step-based flow
+  // post_visita: step-based flow — TODO: expand to full qualification form (same pattern as FollowupModal)
   return <StepTaskModal task={task} onClose={onClose} saving={saving} onSave={save}/>;
 }
 
@@ -1167,6 +1170,99 @@ function PrimerContactoModal({task,lead,projectConfig,onClose,saving,onSave}){
           {resultado!==null&&(
             <button className="btn btn-primary" disabled={saving||!canSave}
               onClick={()=>onSave({resultado,cal,fechaLlamada})}>
+              {saving?"Guardando…":"Guardar ✓"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FollowupModal({task,lead,onClose,saving,onSave}){
+  const [resultado,setResultado]=useState(null);
+  const [animo,setAnimo]=useState("");
+  const [acordado,setAcordado]=useState("");
+  const [notas,setNotas]=useState("");
+  const [agendaVisita,setAgendaVisita]=useState("");
+  const [fechaVisita,setFechaVisita]=useState("");
+  const [fechaLlamada,setFechaLlamada]=useState("");
+
+  const opciones=[
+    {v:"talked",    l:"✅ Hablamos"},
+    {v:"no_answer", l:"📵 No contestó"},
+    {v:"call_later",l:"🕐 Pidió llamar después"},
+  ];
+
+  const canSave=resultado==="talked"?!!animo:resultado==="call_later"?!!fechaLlamada:resultado!==null;
+
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal slide-in" style={{maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-title">Seguimiento</div>
+        <div className="modal-sub"><span style={{color:AV.teal}}>{task.lead}</span></div>
+
+        {resultado===null?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
+            <div className="flow-question">¿Qué pasó en el seguimiento?</div>
+            <div className="flow-options" style={{flexDirection:"column"}}>
+              {opciones.map(o=>(
+                <button key={o.v} className="flow-opt" style={{textAlign:"left"}} onClick={()=>setResultado(o.v)}>{o.l}</button>
+              ))}
+            </div>
+          </div>
+        ):resultado==="talked"?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12,display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{fontWeight:600,color:AV.teal}}>Detalles de la conversación</div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:6}}>¿Cómo estuvo el ánimo? *</div>
+              <div className="flow-options" style={{marginTop:0}}>
+                {["Muy interesado","Interesado","Dudoso","Frío"].map(v=>(
+                  <button key={v} className={`flow-opt${animo===v?" selected":""}`} onClick={()=>setAnimo(v)}>{v}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>¿Qué acordaron como siguiente paso?</div>
+              <input className="input" placeholder="ej. Enviar planos, llamar el viernes…" value={acordado} onChange={e=>setAcordado(e.target.value)}/>
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:6}}>¿Quiere agendar visita al proyecto?</div>
+              <div className="flow-options" style={{marginTop:0}}>
+                {["Sí","No"].map(v=>(
+                  <button key={v} className={`flow-opt${agendaVisita===v?" selected":""}`} onClick={()=>setAgendaVisita(v)}>{v}</button>
+                ))}
+              </div>
+              {agendaVisita==="Sí"&&(
+                <input className="input" style={{marginTop:8}} type="datetime-local" value={fechaVisita} onChange={e=>setFechaVisita(e.target.value)}/>
+              )}
+            </div>
+            <div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:4}}>Notas adicionales</div>
+              <textarea className="input" rows={2} style={{resize:"vertical"}} placeholder="Observaciones, detalles relevantes…" value={notas} onChange={e=>setNotas(e.target.value)}/>
+            </div>
+          </div>
+        ):resultado==="no_answer"?(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
+            <div style={{color:AV.muted,fontSize:"var(--fs-meta)"}}>
+              Se registrará el intento #{(lead?.intentosContacto??0)+1}. El lead permanece en su stage actual.
+            </div>
+          </div>
+        ):(
+          <div style={{background:AV.surface,borderRadius:10,padding:16,marginBottom:12}}>
+            <div className="flow-question">¿Cuándo llamar?</div>
+            <input className="input" type="datetime-local" value={fechaLlamada} onChange={e=>setFechaLlamada(e.target.value)} style={{marginTop:8}}/>
+          </div>
+        )}
+
+        <div className="modal-actions">
+          {resultado===null
+            ?<button className="btn" onClick={onClose}>Cancelar</button>
+            :<button className="btn" onClick={()=>setResultado(null)}>← Atrás</button>
+          }
+          {resultado!==null&&(
+            <button className="btn btn-primary" disabled={saving||!canSave}
+              onClick={()=>onSave({resultado,animo,acordado,notas,agendaVisita,fechaVisita,fechaLlamada})}>
               {saving?"Guardando…":"Guardar ✓"}
             </button>
           )}
@@ -2377,15 +2473,42 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
           by,
         });
       }
+    }else if(task.type==="followup"){
+      const{resultado,animo,acordado,notas,agendaVisita,fechaVisita,fechaLlamada}=ans;
+      if(resultado==="talked"){
+        const agendo=agendaVisita==="Sí";
+        const notaParts=[animo&&`Ánimo: ${animo}`,acordado&&`Acuerdo: ${acordado}`,notas].filter(Boolean);
+        await updateLeadStage(task.leadId,{
+          stage:agendo?"visita_agendada":undefined,
+          fechaCita:agendo&&fechaVisita?new Date(fechaVisita).toISOString():agendo?undefined:undefined,
+          proximoContactoAt:null,
+          action:"Seguimiento — hablamos",
+          nota:notaParts.join(" · ")||"Sin notas",
+          by,
+        });
+      }else if(resultado==="no_answer"){
+        const intentos=(lead?.intentosContacto??0)+1;
+        await updateLeadStage(task.leadId,{
+          intentosContacto:intentos,
+          proximoContactoAt:null,
+          action:"Seguimiento — sin respuesta",
+          nota:`Intento ${intentos}`,
+          by,
+        });
+      }else if(resultado==="call_later"){
+        await updateLeadStage(task.leadId,{
+          proximoContactoAt:fechaLlamada?new Date(fechaLlamada).toISOString():null,
+          action:"Seguimiento — pidió llamar después",
+          nota:fechaLlamada?`Llamar el ${new Date(fechaLlamada).toLocaleString("es-MX")}`:"",
+          by,
+        });
+      }
     }else if(task.type==="post_visita"){
       if(ans.asistio==="yes"){
         await updateLeadStage(task.leadId,{stage:"visita_realizada",action:"Visita realizada",nota:ans.resultado||"",by});
       }else{
         await updateLeadStage(task.leadId,{stage:"calificado",fechaCita:null,action:"Cliente no asistió a visita",nota:"Fecha de cita limpiada",by});
       }
-      if(ans.zonaRoja){const[s,r]=ans.zonaRoja.split("-");await updateLeadStage(task.leadId,{stage:s==="remarketing"?"repechaje":s,action:"Zona roja",nota:r,by});}
-    }else{
-      await updateLeadStage(task.leadId,{action:"Seguimiento realizado",nota:ans.contacted==="yes"?`Interés: ${ans.interes||"—"}`:"Sin respuesta",by});
       if(ans.zonaRoja){const[s,r]=ans.zonaRoja.split("-");await updateLeadStage(task.leadId,{stage:s==="remarketing"?"repechaje":s,action:"Zona roja",nota:r,by});}
     }
     setCompleted(s=>new Set([...s,task.id]));
