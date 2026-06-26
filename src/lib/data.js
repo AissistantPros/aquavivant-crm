@@ -43,8 +43,14 @@ export async function fetchAsesores() {
     tiempo_resp: p.tiempo_resp,
     conversion: p.conversion,
     canBlockUnits: p.can_block_units,
+    ultimoLeadAsignado: p.ultimo_lead_asignado ? new Date(p.ultimo_lead_asignado).getTime() : null,
     metas: metasToShape(metasByAsesor[p.id]),
   }));
+}
+
+export async function updateUltimoLeadAsignado(asesorId) {
+  const { error } = await supabase.from("profiles").update({ ultimo_lead_asignado: new Date().toISOString() }).eq("id", asesorId);
+  if (error) throw error;
 }
 
 export async function setAsesorCanBlockUnits(id, canBlockUnits) {

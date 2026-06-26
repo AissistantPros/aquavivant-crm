@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
-import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification, notifyAdmins } from "./lib/data";
+import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification, notifyAdmins, updateUltimoLeadAsignado } from "./lib/data";
 
 const AV = {
   obsidian:"#0d1117",deep:"#111820",surface:"#161e27",card:"#1a2330",
@@ -2951,19 +2951,28 @@ export default function AquaVivantCRM(){
     if(f.asesor){
       asignado=asesores.find(a=>a.name===f.asesor)||null;
     }else{
-      const activeA=asesores.filter(a=>a.activo).sort((a,b)=>a.turno-b.turno);
+      const activeA=asesores.filter(a=>a.activo).sort((a,b)=>{
+        // Round-robin: whoever went longest without receiving a lead goes first.
+        // null (never received) sorts before any timestamp; tiebreak by turno.
+        if(a.ultimoLeadAsignado===null&&b.ultimoLeadAsignado===null) return a.turno-b.turno;
+        if(a.ultimoLeadAsignado===null) return -1;
+        if(b.ultimoLeadAsignado===null) return 1;
+        return a.ultimoLeadAsignado-b.ultimoLeadAsignado;
+      });
       if(activeA.length>0){
-        // Round-robin: assign to active vendedor with fewest open leads
-        const counts=activeA.map(a=>({a,n:leads.filter(l=>l._asesorId===a.id&&!["perdido","repechaje"].includes(l.stage)).length}));
-        asignado=counts.sort((x,y)=>x.n-y.n)[0].a;
+        asignado=activeA[0];
       } else {
         // No active vendedores: assign to admin
         asignado={id:currentUser?.id};
       }
     }
     await insertLead({name:f.name,phone:f.phone,source:f.source,campaign:f.campaign,interes:f.interes,notes:f.notes,asesorId:asignado?.id||null,authorName:currentUser?.name||"Sistema"});
-    if(asignado?.id&&asignado.id!==currentUser?.id)
-      await insertNotification(asignado.id,{tipo:"lead_asignado",titulo:`Nuevo lead asignado: ${f.name}`,mensaje:`Fuente: ${f.source||"Manual"}`}).catch(()=>{});
+    if(asignado?.id&&asignado.id!==currentUser?.id){
+      await Promise.all([
+        insertNotification(asignado.id,{tipo:"lead_asignado",titulo:`Nuevo lead asignado: ${f.name}`,mensaje:`Fuente: ${f.source||"Manual"}`}),
+        updateUltimoLeadAsignado(asignado.id),
+      ]).catch(()=>{});
+    }
     await refreshData();
   }
 
