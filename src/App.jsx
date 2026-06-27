@@ -324,8 +324,8 @@ const css = `
   .goal-grid-compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:8px;margin-bottom:16px;}
   .goal-card-compact{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:border-color .15s;}
   .goal-card-compact:hover{border-color:var(--border-light);}
+  .goal-compact-title{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);display:block;margin-bottom:5px;word-break:break-word;}
   .goal-compact-main{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-  .goal-compact-title{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .goal-compact-value{font-size:var(--fs-meta);color:var(--text-dim);white-space:nowrap;}
   .goal-compact-bar{height:4px;background:var(--bg-base);border-radius:3px;overflow:hidden;margin-bottom:0;}
   .goal-card-actions{display:flex;gap:6px;max-height:0;overflow:hidden;opacity:0;transition:max-height .2s,opacity .2s,margin-top .2s;}
@@ -1731,8 +1731,8 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
             return(
               <div key={g.id} className="goal-card-compact" style={{opacity:g.active?1:.5}}
                 onClick={()=>setActiveGoalId(id=>id===g.id?null:g.id)}>
+                <span className="goal-compact-title">{g.title}</span>
                 <div className="goal-compact-main">
-                  <span className="goal-compact-title" title={g.title}>{g.title}</span>
                   <span className={`goal-status goal-status-${statusCls}`}>{prog.met?"Cumplida":prog.pct>=50?"En curso":"Atrasada"}</span>
                   <span className="goal-compact-value">{valLabel}</span>
                 </div>
@@ -1744,6 +1744,7 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
                   <button className="btn btn-sm" onClick={()=>{setEditGoal(g);setShowGoalModal(true);}}>Editar</button>
                   <button className="btn btn-sm" onClick={()=>updateGoal(g.id,{active:!g.active}).then(refreshData)}>{g.active?"Pausar":"Activar"}</button>
                   <button className="btn btn-sm" style={{color:AV.rose}} onClick={()=>{if(confirm("¿Eliminar esta meta?"))deleteGoal(g.id).then(refreshData);}}>Eliminar</button>
+                  <button className="btn btn-sm" style={{marginLeft:"auto",color:AV.muted}} onClick={e=>{e.stopPropagation();setActiveGoalId(null);}}>×</button>
                 </div>
               </div>
             );
@@ -2970,10 +2971,10 @@ export default function AquaVivantCRM(){
   const [chatMessages,setChatMessages]=useState([{type:"bot",text:"Hola, soy tu asistente de IA. ¿En qué puedo ayudarte?"}]);
 
   const role=currentUser?.role||"admin";
-  const [isMobile,setIsMobile]=useState(typeof window!=="undefined"&&window.innerWidth<768);
+  const [isMobile,setIsMobile]=useState(typeof window!=="undefined"&&window.innerWidth<=768);
 
   useEffect(()=>{
-    function onResize(){setIsMobile(window.innerWidth<768);}
+    function onResize(){setIsMobile(window.innerWidth<=768);}
     window.addEventListener("resize",onResize);
     window.addEventListener("orientationchange",onResize);
     return()=>{window.removeEventListener("resize",onResize);window.removeEventListener("orientationchange",onResize);};
