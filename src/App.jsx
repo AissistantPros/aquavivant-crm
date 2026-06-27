@@ -28,11 +28,11 @@ const css = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   :root{
-    --fs-meta:14px;
-    --fs-body:clamp(14px,0.208vw + 13.33px,16px);
-    --fs-title:clamp(18px,0.417vw + 16.67px,22px);
-    --fs-stat:clamp(24px,1.042vw + 20.67px,34px);
-    --fs-display:clamp(28px,2.083vw + 21.33px,48px);
+    --fs-meta:16px;
+    --fs-body:16px;
+    --fs-title:clamp(20px,0.208vw + 19.33px,22px);
+    --fs-stat:clamp(26px,0.833vw + 23.33px,34px);
+    --fs-display:clamp(30px,1.875vw + 24px,48px);
     --content-pad:clamp(12px,3vw,24px);
     --font-display:'Cormorant Garamond',serif;
     --font-body:'DM Sans',sans-serif;
