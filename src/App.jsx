@@ -1582,6 +1582,7 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
   const [showGoalModal,setShowGoalModal]=useState(false);
   const [editGoal,setEditGoal]=useState(null);
   const [towerDetail,setTowerDetail]=useState(null);
+  const [showTowers,setShowTowers]=useState(()=>window.innerWidth>768);
   const [activeGoalId,setActiveGoalId]=useState(null);
   const brokerOptions=Array.from(new Map(leads.filter(l=>l._brokerId).map(l=>[l._brokerId,{id:l._brokerId,name:l.broker}])).values());
   const now=new Date();
@@ -1665,10 +1666,15 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
     <>
       {/* Torres + avance del proyecto — una sola fila compacta */}
       <div className="project-bar-row">
-        <div className="project-bar-section">
+        <div className="project-bar-section" style={{cursor:window.innerWidth<=768?"pointer":"default"}}
+          onClick={()=>{if(window.innerWidth<=768)setShowTowers(v=>!v);}}>
           <div className="project-bar-top">
             <span className="progress-strip-title">Avance del Proyecto</span>
-            <span className="progress-strip-pct">{pctVendido!=null?`${pctVendido}% vendido`:"—"}{pctHaciaMeta!=null&&<span style={{color:AV.muted,marginLeft:8}}>· {pctHaciaMeta}% hacia meta</span>}</span>
+            <span className="progress-strip-pct">
+              {pctVendido!=null?`${pctVendido}% vendido`:"—"}
+              {pctHaciaMeta!=null&&<span style={{color:AV.muted,marginLeft:8}}>· {pctHaciaMeta}% hacia meta</span>}
+              {window.innerWidth<=768&&<span style={{color:AV.muted,marginLeft:8,fontSize:11}}>{showTowers?"▾":"▸"}</span>}
+            </span>
           </div>
           <div className="progress-strip-track">
             <div className="progress-strip-fill" style={{width:`${pctVendido??0}%`}}/>
@@ -1676,16 +1682,16 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
           </div>
           <div className="progress-strip-sub">{vendidasTotal} de {totalUnidades} unidades{metaTotal?` · Meta: ${metaTotal}`:""}</div>
         </div>
-        <div className="tower-chips">
+        {showTowers&&<div className="tower-chips">
           {towerCards.map(t=>(
             <button key={t.id} className={`tower-chip${towerDetail?.id===t.id?" active":""}`}
-              onClick={()=>setTowerDetail(towerDetail?.id===t.id?null:t)}>
+              onClick={e=>{e.stopPropagation();setTowerDetail(towerDetail?.id===t.id?null:t);}}>
               <span className="tower-chip-dot" style={{background:towerStatusDot[t.status]||"var(--text-muted)"}}/>
               <span className="tower-chip-name">Torre {t.letter}</span>
               <span className="tower-chip-status">{towerStatusLabel[t.status]||t.status}</span>
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {towerDetail&&(
