@@ -331,11 +331,11 @@ const css = `
   .goal-card-actions{display:flex;gap:6px;max-height:0;overflow:hidden;opacity:0;transition:max-height .2s,opacity .2s,margin-top .2s;}
   .goal-card-compact{cursor:pointer;}
   .goal-card-actions.open{max-height:36px;opacity:1;margin-top:8px;}
-  .funnel-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;}
-  .funnel-chip{padding:10px 8px;background:var(--bg-surface);text-align:center;}
+  .funnel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;}
+  .funnel-chip{padding:10px 6px;background:var(--bg-surface);text-align:center;}
   .funnel-chip.clickable{cursor:pointer;transition:background .15s;}
   .funnel-chip.clickable:hover{background:var(--bg-hover);}
-  .funnel-chip-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;margin-bottom:3px;}
+  .funnel-chip-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;word-break:break-word;margin-bottom:3px;line-height:1.3;}
   .funnel-chip-val{font-family:var(--font-display);font-size:clamp(20px,2vw,26px);font-weight:400;line-height:1;color:var(--text-primary);}
   @media(max-width:768px){
     /* — Breakpoint estructural: solo cambia comportamiento de layout — */
