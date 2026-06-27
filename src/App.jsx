@@ -91,6 +91,8 @@ const css = `
   .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--text-dim);font-size:var(--fs-meta);transition:all .15s;border:1px solid transparent;margin-bottom:2px;}
   .nav-item:hover{background:var(--bg-surface);color:var(--text-primary);}
   .nav-item.active{background:var(--accent-glow);border-color:var(--border);color:var(--accent);}
+  :root[data-theme="light"] .nav-item.active{background:rgba(13,148,136,0.07);border-color:var(--accent);border-left-width:3px;color:var(--accent-dim);}
+  :root[data-theme="light"] .role-btn.active{background:rgba(13,148,136,0.07);border-color:var(--accent-dim);}
   .nav-icon{font-size:16px;width:20px;text-align:center;}
   .nav-badge{margin-left:auto;background:var(--danger);color:white;font-size:var(--fs-meta);padding:1px 6px;border-radius:10px;font-weight:600;}
   .sidebar-user{padding:14px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;}
@@ -301,6 +303,36 @@ const css = `
   .semaforo-dot-rojo{background:var(--danger);}
   .semaforo-metrics{display:flex;gap:18px;flex-wrap:wrap;font-size:var(--fs-meta);color:var(--text-dim);margin-bottom:6px;}
   .semaforo-diag{font-size:var(--fs-meta);color:var(--text-secondary);font-style:italic;}
+  .project-bar-row{display:flex;align-items:center;gap:16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;}
+  .project-bar-section{flex:1;min-width:0;}
+  .project-bar-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+  .tower-chips{display:flex;gap:8px;flex-shrink:0;}
+  .tower-chip{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:transparent;cursor:pointer;transition:all .15s;font-family:var(--font-body);}
+  .tower-chip:hover,.tower-chip.active{border-color:var(--accent-dim);background:var(--accent-glow);}
+  .tower-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .tower-chip-name{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);}
+  .tower-chip-status{font-size:11px;color:var(--text-muted);margin-left:2px;}
+  .tower-detail-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:10px;animation:fadeIn .15s ease;}
+  .tower-detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .tower-detail-stats{display:flex;flex-wrap:wrap;gap:16px;font-size:var(--fs-meta);color:var(--text-dim);}
+  .tower-detail-stats strong{color:var(--text-primary);}
+  .goal-grid-compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-bottom:16px;}
+  .goal-card-compact{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:border-color .15s;}
+  .goal-card-compact:hover{border-color:var(--border-light);}
+  .goal-compact-main{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .goal-compact-title{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .goal-compact-value{font-size:var(--fs-meta);color:var(--text-dim);white-space:nowrap;}
+  .goal-compact-bar{height:4px;background:var(--bg-base);border-radius:3px;overflow:hidden;margin-bottom:0;}
+  .goal-card-actions{display:flex;gap:6px;max-height:0;overflow:hidden;opacity:0;transition:max-height .2s,opacity .2s,margin-top .2s;}
+  .goal-card-compact:hover .goal-card-actions{max-height:36px;opacity:1;margin-top:8px;}
+  .funnel-strip{display:flex;overflow-x:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:16px;scrollbar-width:none;}
+  .funnel-strip::-webkit-scrollbar{display:none;}
+  .funnel-chip{flex:1 0 auto;padding:10px 12px;border-right:1px solid var(--border);text-align:center;min-width:100px;}
+  .funnel-chip:last-child{border-right:none;}
+  .funnel-chip.clickable{cursor:pointer;transition:background .15s;}
+  .funnel-chip.clickable:hover{background:var(--bg-hover);}
+  .funnel-chip-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;margin-bottom:3px;}
+  .funnel-chip-val{font-family:var(--font-display);font-size:26px;font-weight:400;line-height:1;color:var(--text-primary);}
   @media(max-width:1024px){
     .stats-grid{grid-template-columns:repeat(2,1fr);}
     .two-col{grid-template-columns:1fr;}
@@ -356,6 +388,13 @@ const css = `
     .funnel-grid{grid-template-columns:1fr;}
     .progress-strip-pct{font-size:19px;}
     .semaforo-metrics{gap:12px;}
+    .project-bar-row{flex-direction:column;align-items:stretch;gap:10px;}
+    .tower-chips{flex-wrap:wrap;}
+    .goal-grid-compact{grid-template-columns:repeat(2,1fr);}
+    .goal-card-actions{max-height:36px;opacity:1;margin-top:8px;}
+    .funnel-chip{min-width:84px;padding:8px 8px;}
+    .funnel-chip-val{font-size:20px;}
+    .funnel-chip-label{font-size:10px;}
   }
   @media(max-width:480px){
     .content{padding:10px;padding-bottom:80px;font-size:18px;}
@@ -1592,6 +1631,7 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
   const [showSpendModal,setShowSpendModal]=useState(false);
   const [showGoalModal,setShowGoalModal]=useState(false);
   const [editGoal,setEditGoal]=useState(null);
+  const [towerDetail,setTowerDetail]=useState(null);
   const brokerOptions=Array.from(new Map(leads.filter(l=>l._brokerId).map(l=>[l._brokerId,{id:l._brokerId,name:l.broker}])).values());
   const now=new Date();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
@@ -1655,73 +1695,97 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
     return{source:src,label:SOURCES[src]?.label||src,amount:Number(spend.amount),pct,cpl,cplc,color,diag:diagnosticoInversion(color,pct,leadsMes)};
   }).filter(Boolean);
 
+  const towerStatusDot={preventa:"var(--text-secondary)",en_venta:"var(--accent)",entregada:"var(--success)"};
+  const towerStatusLabel={preventa:"Preventa",en_venta:"En Venta",entregada:"Entregada"};
+  const funnelItems=[
+    {label:"Vendidas mes",val:vendidasEsteMes,cls:"stat-accent",stage:"vendida"},
+    {label:"Mes anterior",val:vendidasMesAnterior,stage:null},
+    {label:"Escrituración",val:enEscrituracion,cls:"stat-warn",stage:null},
+    {label:"Apartadas",val:apartadasCount,stage:"apartado"},
+    {label:"Negociación",val:enNegociacion,stage:"negociacion"},
+    {label:"Documentación",val:enDocumentacion,stage:"documentacion"},
+    {label:"Visitas realizadas",val:visitasRealizadasMes,stage:"visita_realizada"},
+    {label:"Agendadas",val:visitasAgendadas,stage:"visita_agendada"},
+    {label:"Calificados",val:leadsCalificados,stage:"calificado"},
+    {label:"Contactados",val:leadsContactados,stage:"contactado"},
+  ];
+
   return(
     <>
-      <div className="progress-strip">
-        <div className="progress-strip-top">
-          <span className="progress-strip-title">Avance del Proyecto</span>
-          <span className="progress-strip-pct">{pctVendido!=null?`${pctVendido}% vendido`:"(sin info)"}{pctHaciaMeta!=null&&<span style={{color:AV.muted,fontSize:14,marginLeft:10}}>· {pctHaciaMeta}% hacia meta</span>}</span>
-        </div>
-        <div className="progress-strip-track">
-          <div className="progress-strip-fill" style={{width:`${pctVendido??0}%`}}/>
-          {tickPct!=null&&<div className="progress-strip-tick" style={{left:`${tickPct}%`}}/>}
-        </div>
-        <div className="progress-strip-sub">{vendidasTotal} de {totalUnidades} unidades vendidas{metaTotal?` · Meta: ${metaTotal} unidades`:""}</div>
-      </div>
-
-      <div className="section-title">Torres</div>
-      <div className="tower-grid">
-        {towerCards.map(t=>(
-          <div key={t.id} className="tower-mini">
-            <div className="tower-mini-head">
-              <span className="tower-mini-name">Torre {t.letter}</span>
-              <span className={`tower-badge tower-badge-${t.status}`}>{t.status==="preventa"?"Preventa":t.status==="en_venta"?"En Venta":"Entregada"}</span>
-            </div>
-            <div className="tower-progress-track"><div className="tower-progress-fill" style={{width:`${t.total>0?Math.round(t.vendidas/t.total*100):0}%`}}/></div>
-            <div className="tower-mini-stats">
-              <span>Entregada {t.entregadas}/{t.total}</span>
-              <span>Escriturada {t.escrituradas}/{t.total}</span>
-              <span>Vendida {t.vendidas}/{t.total}</span>
-            </div>
-            {(t.status==="en_venta"||(t.status==="preventa"&&t.vendidas>0))&&(
-              <div className="tower-mini-stats" style={{marginTop:4}}>
-                <span>Disponibles {t.disponibles}</span>
-                <span>Apartadas {t.apartadas}</span>
-                <span>Bloqueadas {t.bloqueadas}</span>
-              </div>
-            )}
-            {t.status==="preventa"&&t.vendidas===0&&<div className="tower-note">Aún no disponible para venta</div>}
+      {/* Torres + avance del proyecto — una sola fila compacta */}
+      <div className="project-bar-row">
+        <div className="project-bar-section">
+          <div className="project-bar-top">
+            <span className="progress-strip-title">Avance del Proyecto</span>
+            <span className="progress-strip-pct">{pctVendido!=null?`${pctVendido}% vendido`:"—"}{pctHaciaMeta!=null&&<span style={{color:AV.muted,marginLeft:8}}>· {pctHaciaMeta}% hacia meta</span>}</span>
           </div>
-        ))}
+          <div className="progress-strip-track">
+            <div className="progress-strip-fill" style={{width:`${pctVendido??0}%`}}/>
+            {tickPct!=null&&<div className="progress-strip-tick" style={{left:`${tickPct}%`}}/>}
+          </div>
+          <div className="progress-strip-sub">{vendidasTotal} de {totalUnidades} unidades{metaTotal?` · Meta: ${metaTotal}`:""}</div>
+        </div>
+        <div className="tower-chips">
+          {towerCards.map(t=>(
+            <button key={t.id} className={`tower-chip${towerDetail?.id===t.id?" active":""}`}
+              onClick={()=>setTowerDetail(towerDetail?.id===t.id?null:t)}>
+              <span className="tower-chip-dot" style={{background:towerStatusDot[t.status]||"var(--text-muted)"}}/>
+              <span className="tower-chip-name">Torre {t.letter}</span>
+              <span className="tower-chip-status">{towerStatusLabel[t.status]||t.status}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
+      {towerDetail&&(
+        <div className="tower-detail-card">
+          <div className="tower-detail-head">
+            <strong style={{color:AV.text}}>Torre {towerDetail.letter} — {towerStatusLabel[towerDetail.status]}</strong>
+            <button onClick={()=>setTowerDetail(null)} style={{background:"none",border:"none",color:AV.muted,cursor:"pointer",fontSize:20,lineHeight:1}}>×</button>
+          </div>
+          <div className="tower-progress-track" style={{marginBottom:10}}>
+            <div className="tower-progress-fill" style={{width:`${towerDetail.total>0?Math.round(towerDetail.vendidas/towerDetail.total*100):0}%`}}/>
+          </div>
+          <div className="tower-detail-stats">
+            <span>Total <strong>{towerDetail.total}</strong></span>
+            <span>Vendidas <strong>{towerDetail.vendidas}</strong></span>
+            <span>Disponibles <strong>{towerDetail.disponibles}</strong></span>
+            <span>Apartadas <strong>{towerDetail.apartadas}</strong></span>
+            <span>Bloqueadas <strong>{towerDetail.bloqueadas}</strong></span>
+            <span>Escrituradas <strong>{towerDetail.escrituradas}</strong></span>
+            <span>Entregadas <strong>{towerDetail.entregadas}</strong></span>
+          </div>
+        </div>
+      )}
+
+      {/* Metas — tarjetas compactas ~80px, acciones en hover */}
       <div className="section-title" style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <span>Metas y Objetivos</span>
         <button className="btn" style={{padding:"4px 10px",fontSize:"var(--fs-meta)"}} onClick={()=>{setEditGoal(null);setShowGoalModal(true);}}>+ Nueva meta</button>
       </div>
       {goals.length===0?(
-        <div className="panel" style={{marginBottom:24}}><div className="panel-body" style={{fontSize:"var(--fs-meta)",color:AV.muted}}>Sin metas configuradas. Usa "+ Nueva meta" para definir objetivos de ventas, leads calificados o tiempo de respuesta.</div></div>
+        <div className="panel" style={{marginBottom:12}}><div className="panel-body" style={{fontSize:"var(--fs-meta)",color:AV.muted}}>Sin metas configuradas. Usa "+ Nueva meta" para definir objetivos.</div></div>
       ):(
-        <div className="goal-grid">
+        <div className="goal-grid-compact">
           {goals.map(g=>{
             const prog=computeGoalProgress(g,leads,units);
-            const metric=GOAL_METRICS.find(m=>m.key===g.metric_key);
+            const barColor=prog.met?"var(--success)":prog.pct>=50?"var(--warning)":"var(--danger)";
+            const statusCls=prog.met?"met":prog.pct>=50?"warn":"behind";
+            const valLabel=prog.value==null?"Sin datos":g.metric_key==="tiempo_respuesta"?`${prog.value}h / ${prog.target}h`:`${prog.value} / ${prog.target}`;
             return(
-              <div key={g.id} className="goal-card" style={{opacity:g.active?1:.5}}>
-                <div className="goal-card-head">
-                  <span className="goal-card-title">{g.title}</span>
-                  <span className={`goal-status goal-status-${prog.met?"met":prog.pct>=50?"warn":"behind"}`}>{prog.met?"Cumplida":prog.pct>=50?"En curso":"Atrasada"}</span>
+              <div key={g.id} className="goal-card-compact" style={{opacity:g.active?1:.5}}>
+                <div className="goal-compact-main">
+                  <span className="goal-compact-title" title={g.title}>{g.title}</span>
+                  <span className={`goal-status goal-status-${statusCls}`}>{prog.met?"Cumplida":prog.pct>=50?"En curso":"Atrasada"}</span>
+                  <span className="goal-compact-value">{valLabel}</span>
                 </div>
-                <div className="goal-card-sub">{scopeLabel(g,asesores,brokerOptions)} · {metric?.label}</div>
-                <div className="tower-progress-track"><div className="tower-progress-fill" style={{width:`${prog.pct}%`,background:prog.met?AV.green:prog.pct>=50?AV.amber:AV.rose}}/></div>
-                <div className="goal-card-sub" style={{marginTop:6}}>
-                  {prog.value==null?"Sin datos":g.metric_key==="tiempo_respuesta"?`${prog.value}h promedio (meta: ${g.comparison==="lte"?"≤":"≥"}${prog.target}h)`:`${prog.value} / ${prog.target} ${metric?.unit||""}`}
+                <div className="goal-compact-bar">
+                  <div style={{height:"100%",borderRadius:3,background:barColor,width:`${prog.pct}%`,transition:"width .5s"}}/>
                 </div>
-                <div className="goal-card-sub" style={{marginTop:4}}>{g.period_start}{g.period_end?` → ${g.period_end}`:" (sin fecha límite)"}{g.recurring==="mensual"?" · Mensual":""}</div>
-                <div style={{display:"flex",gap:8,marginTop:8}}>
-                  <button className="btn" style={{padding:"3px 8px",fontSize:11}} onClick={()=>{setEditGoal(g);setShowGoalModal(true);}}>Editar</button>
-                  <button className="btn" style={{padding:"3px 8px",fontSize:11}} onClick={()=>updateGoal(g.id,{active:!g.active}).then(refreshData)}>{g.active?"Pausar":"Activar"}</button>
-                  <button className="btn" style={{padding:"3px 8px",fontSize:11,color:AV.rose}} onClick={()=>{if(confirm("¿Eliminar esta meta?"))deleteGoal(g.id).then(refreshData);}}>Eliminar</button>
+                <div className="goal-card-actions">
+                  <button className="btn btn-sm" onClick={()=>{setEditGoal(g);setShowGoalModal(true);}}>Editar</button>
+                  <button className="btn btn-sm" onClick={()=>updateGoal(g.id,{active:!g.active}).then(refreshData)}>{g.active?"Pausar":"Activar"}</button>
+                  <button className="btn btn-sm" style={{color:AV.rose}} onClick={()=>{if(confirm("¿Eliminar esta meta?"))deleteGoal(g.id).then(refreshData);}}>Eliminar</button>
                 </div>
               </div>
             );
@@ -1729,18 +1793,15 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
         </div>
       )}
 
+      {/* Funnel — chips en fila horizontal, scroll en móvil */}
       <div className="section-title">Funnel de Ventas</div>
-      <div className="funnel-grid">
-        <div className="stat-card"><div className="stat-label">Vendidas Este Mes</div><div className="stat-value stat-value-hero stat-accent">{vendidasEsteMes}</div><div className="stat-sub">Unidades</div></div>
-        <div className="stat-card"><div className="stat-label">Vendidas Mes Anterior</div><div className="stat-value stat-value-hero">{vendidasMesAnterior}</div><div className="stat-sub">Unidades</div></div>
-        <div className="stat-card"><div className="stat-label">En Escrituración</div><div className="stat-value stat-value-hero stat-warn">{enEscrituracion}</div><div className="stat-sub">Unidades</div></div>
-        <div className="stat-card"><div className="stat-label">Apartadas</div><div className="stat-value">{apartadasCount}</div><div className="stat-sub">Unidades</div></div>
-        <div className="stat-card"><div className="stat-label">En Negociación</div><div className="stat-value">{enNegociacion}</div><div className="stat-sub">Leads</div></div>
-        <div className="stat-card"><div className="stat-label">En Documentación</div><div className="stat-value">{enDocumentacion}</div><div className="stat-sub">Leads</div></div>
-        <div className="stat-card"><div className="stat-label">Visitas Realizadas (mes)</div><div className="stat-value">{visitasRealizadasMes}</div><div className="stat-sub">Leads</div></div>
-        <div className="stat-card"><div className="stat-label">Visitas Agendadas</div><div className="stat-value">{visitasAgendadas}</div><div className="stat-sub">Leads</div></div>
-        <div className="stat-card"><div className="stat-label">Leads Calificados</div><div className="stat-value">{leadsCalificados}</div><div className="stat-sub">Leads</div></div>
-        <div className="stat-card"><div className="stat-label">Leads Contactados</div><div className="stat-value">{leadsContactados}</div><div className="stat-sub">Leads</div></div>
+      <div className="funnel-strip">
+        {funnelItems.map((item,i)=>(
+          <div key={i} className={`funnel-chip${item.stage?" clickable":""}`} onClick={()=>item.stage&&setView("pipeline")}>
+            <div className="funnel-chip-label">{item.label}</div>
+            <div className={`funnel-chip-val${item.cls?" "+item.cls:""}`}>{item.val}</div>
+          </div>
+        ))}
       </div>
 
       <div className="section-title">Inteligencia de Marketing</div>
