@@ -28,7 +28,12 @@ const css = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   :root{
-    --fs-meta:14px;--fs-body:16px;
+    --fs-meta:14px;
+    --fs-body:clamp(14px,0.208vw + 13.33px,16px);
+    --fs-title:clamp(18px,0.417vw + 16.67px,22px);
+    --fs-stat:clamp(24px,1.042vw + 20.67px,34px);
+    --fs-display:clamp(28px,2.083vw + 21.33px,48px);
+    --content-pad:clamp(12px,3vw,24px);
     --font-display:'Cormorant Garamond',serif;
     --font-body:'DM Sans',sans-serif;
     --radius:10px;--radius-sm:6px;
@@ -102,9 +107,9 @@ const css = `
   .user-role{font-size:var(--fs-meta);color:var(--text-muted);}
   .main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
   .topbar{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;background:var(--bg-deep);}
-  .topbar-title{font-family:var(--font-display);font-size:22px;font-weight:400;color:var(--text-primary);flex:1;}
+  .topbar-title{font-family:var(--font-display);font-size:var(--fs-title);font-weight:400;color:var(--text-primary);flex:1;}
   .topbar-actions{display:flex;gap:8px;align-items:center;}
-  .content{flex:1;overflow-y:auto;padding:24px;}
+  .content{flex:1;overflow-y:auto;padding:var(--content-pad);}
   .btn{padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-primary);font-size:var(--fs-meta);cursor:pointer;transition:all .15s;font-family:var(--font-body);display:flex;align-items:center;gap:6px;}
   .btn:hover{background:var(--bg-surface);border-color:var(--border-light);}
   .btn-primary{background:var(--accent-dim);border-color:var(--accent);color:white;}
@@ -113,16 +118,16 @@ const css = `
   .btn-danger:hover{background:rgba(251,113,133,.1);}
   .btn-sm{padding:5px 10px;font-size:var(--fs-meta);}
   .btn:disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
-  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:14px;margin-bottom:24px;}
   .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;}
   .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent);}
   .stat-label{font-size:var(--fs-meta);color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;}
-  .stat-value{font-family:var(--font-display);font-size:34px;font-weight:400;color:var(--text-primary);line-height:1;}
+  .stat-value{font-family:var(--font-display);font-size:var(--fs-stat);font-weight:400;color:var(--text-primary);line-height:1;}
   .stat-sub{font-size:var(--fs-body);color:var(--text-muted);margin-top:6px;}
   .stat-accent{color:var(--accent);}.stat-warn{color:var(--warning);}.stat-danger{color:var(--danger);}
   .section-title{font-size:var(--fs-meta);font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin:20px 0 8px;}
   .section-title:first-child{margin-top:0;}
-  .stat-value-hero{font-size:48px;}
+  .stat-value-hero{font-size:var(--fs-display);}
   .action-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden;}
   .action-row{display:flex;align-items:flex-start;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border);}
   .action-row:last-child{border-bottom:none;}
@@ -132,7 +137,7 @@ const css = `
   .action-sub{font-size:var(--fs-meta);color:var(--text-dim);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}
   .action-ok{padding:18px;text-align:center;color:var(--success);font-size:var(--fs-body);}
   .action-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
-  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:16px;margin-bottom:16px;}
   .full-row{margin-bottom:16px;}
   .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
   .panel-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
@@ -195,9 +200,9 @@ const css = `
   .unit-status{font-size:var(--fs-meta);font-weight:500;margin-top:6px;}
   .us-disponible{color:var(--accent);}.us-apartada{color:var(--warning);}.us-bloqueada{color:var(--danger);}.us-vendida{color:var(--text-muted);}
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
-  .modal{background:var(--bg-card);border:1px solid var(--border-light);border-radius:16px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;padding:28px;}
+  .modal{background:var(--bg-card);border:1px solid var(--border-light);border-radius:16px;width:100%;max-width:min(560px,calc(100vw - 24px));max-height:88vh;overflow-y:auto;padding:28px;}
   .modal-lg{max-width:680px;}
-  .modal-title{font-family:var(--font-display);font-size:24px;font-weight:400;color:var(--text-primary);margin-bottom:6px;}
+  .modal-title{font-family:var(--font-display);font-size:var(--fs-title);font-weight:400;color:var(--text-primary);margin-bottom:6px;}
   .modal-sub{font-size:var(--fs-meta);color:var(--text-dim);margin-bottom:20px;}
   .form-group{margin-bottom:16px;}
   .form-label{font-size:var(--fs-meta);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;display:block;}
@@ -316,7 +321,7 @@ const css = `
   .tower-detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .tower-detail-stats{display:flex;flex-wrap:wrap;gap:16px;font-size:var(--fs-meta);color:var(--text-dim);}
   .tower-detail-stats strong{color:var(--text-primary);}
-  .goal-grid-compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-bottom:16px;}
+  .goal-grid-compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:8px;margin-bottom:16px;}
   .goal-card-compact{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:border-color .15s;}
   .goal-card-compact:hover{border-color:var(--border-light);}
   .goal-compact-main{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
@@ -324,7 +329,7 @@ const css = `
   .goal-compact-value{font-size:var(--fs-meta);color:var(--text-dim);white-space:nowrap;}
   .goal-compact-bar{height:4px;background:var(--bg-base);border-radius:3px;overflow:hidden;margin-bottom:0;}
   .goal-card-actions{display:flex;gap:6px;max-height:0;overflow:hidden;opacity:0;transition:max-height .2s,opacity .2s,margin-top .2s;}
-  .goal-card-compact:hover .goal-card-actions{max-height:36px;opacity:1;margin-top:8px;}
+  .goal-card-compact:hover .goal-card-actions,.goal-card-actions.open{max-height:36px;opacity:1;margin-top:8px;}
   .funnel-strip{display:flex;overflow-x:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:16px;scrollbar-width:none;}
   .funnel-strip::-webkit-scrollbar{display:none;}
   .funnel-chip{flex:1 0 auto;padding:10px 12px;border-right:1px solid var(--border);text-align:center;min-width:100px;}
@@ -333,79 +338,29 @@ const css = `
   .funnel-chip.clickable:hover{background:var(--bg-hover);}
   .funnel-chip-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;margin-bottom:3px;}
   .funnel-chip-val{font-family:var(--font-display);font-size:26px;font-weight:400;line-height:1;color:var(--text-primary);}
-  @media(max-width:1024px){
-    .stats-grid{grid-template-columns:repeat(2,1fr);}
-    .two-col{grid-template-columns:1fr;}
-    .sidebar{width:180px;min-width:180px;}
-    .topbar-title{font-size:18px;}
-    .modal{max-width:90vw;}
-  }
   @media(max-width:768px){
-    :root{--fs-meta:14px;--fs-body:16px;}
+    /* — Breakpoint estructural: solo cambia comportamiento de layout — */
     .crm-root{flex-direction:column;}
     .sidebar{position:fixed;top:60px;left:0;right:0;width:100%;height:auto;max-height:calc(100vh - 60px);z-index:900;flex-direction:column;overflow-y:auto;background:var(--bg-base);}
     .sidebar.hidden{display:none;}
     .sidebar-logo{padding:12px 16px;flex-direction:row;align-items:center;justify-content:space-between;width:100%;border-bottom:1px solid var(--border);}
-    .logo-name{font-size:20px;font-weight:600;}
     .sidebar-nav{width:100%;display:flex;flex-direction:column;padding:0;}
     .sidebar-user{display:none;}
     .sidebar-role{display:none;}
     .main{padding-top:60px;margin-left:0;}
     .topbar{position:fixed;top:0;left:0;right:0;height:60px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:899;border-bottom:1px solid var(--border);}
-    .topbar-title{font-size:18px;font-weight:600;}
     .topbar-actions{gap:8px;display:flex;align-items:center;}
-    .topbar-actions .btn{padding:8px 12px;font-size:16px;min-height:44px;}
-    .content{padding:12px;padding-bottom:80px;}
-    .nav-item{padding:14px 16px;font-size:16px;border-left:3px solid transparent;display:flex;align-items:center;gap:12px;}
-    .nav-item:hover{background:var(--bg-hover);}
-    .nav-item.active{border-left-color:var(--accent);background:var(--bg-hover);}
-    .nav-icon{font-size:18px;}
-    .nav-label{padding:8px 16px;font-size:14px;text-transform:uppercase;color:var(--text-muted);font-weight:600;}
-    .stats-grid{grid-template-columns:1fr;gap:12px;}
-    .stat-card{padding:14px;}
-    .stat-value{font-size:32px;font-weight:600;}
-    .stat-value-hero{font-size:36px;}
-    .action-row{padding:12px 14px;}
-    .two-col{grid-template-columns:1fr;}
-    .panel-header{padding:12px 16px;}
-    .panel-body{padding:12px;}
-    .modal{max-width:95vw;padding:18px;border-radius:12px;}
-    .modal-title{font-size:20px;font-weight:600;}
-    .form-input{padding:10px 12px;font-size:16px;min-height:44px;}
-    .form-select{padding:10px 12px;font-size:16px;min-height:44px;}
-    .btn{padding:10px 16px;font-size:16px;min-height:44px;border-radius:6px;}
-    .lead-card{padding:12px;}
-    .pipeline-col{min-width:140px;padding:10px;}
-    .units-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));}
-    table{font-size:14px;}
-    th,td{padding:10px 8px;}
-    .asesor-card{padding:12px;}
+    .content{padding:var(--content-pad);padding-bottom:calc(var(--content-pad) + 56px);}
+    .btn{min-height:44px;}
+    .form-input,.form-select{min-height:44px;}
     .ia-chat{height:300px;}
-    .tower-grid{grid-template-columns:1fr;}
-    .funnel-grid{grid-template-columns:1fr;}
-    .semaforo-metrics{gap:12px;}
     .project-bar-row{flex-direction:column;align-items:stretch;gap:10px;}
     .tower-chips{flex-wrap:wrap;}
-    .goal-grid-compact{grid-template-columns:repeat(2,1fr);}
-    .goal-compact-main{flex-wrap:wrap;gap:4px;}
-    .goal-compact-title{white-space:normal;}
-    .goal-card-actions{max-height:none;opacity:1;margin-top:8px;overflow:visible;}
     .funnel-strip{display:grid;grid-template-columns:repeat(2,1fr);overflow-x:visible;}
     .funnel-chip{border-right:none;border-bottom:1px solid var(--border);}
     .funnel-chip:nth-child(odd){border-right:1px solid var(--border);}
     .funnel-chip:nth-last-child(-n+2){border-bottom:none;}
-    .funnel-chip-val{font-size:22px;}
-    .funnel-chip-label{font-size:11px;}
-  }
-  @media(max-width:480px){
-    .content{padding:10px;padding-bottom:80px;}
-    .topbar-title{font-size:16px;}
-    .nav-item{padding:12px 14px;font-size:16px;}
-    .stat-value{font-size:28px;}
-    .modal{max-width:100vw;border-radius:0;padding:16px;}
-    .form-input{font-size:16px;min-height:44px;}
-    .btn{font-size:16px;padding:10px 14px;min-height:40px;}
-    .goal-grid-compact{grid-template-columns:1fr;}
+    .semaforo-metrics{gap:12px;}
   }
 `;
 
@@ -1632,6 +1587,7 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
   const [showGoalModal,setShowGoalModal]=useState(false);
   const [editGoal,setEditGoal]=useState(null);
   const [towerDetail,setTowerDetail]=useState(null);
+  const [activeGoalId,setActiveGoalId]=useState(null);
   const brokerOptions=Array.from(new Map(leads.filter(l=>l._brokerId).map(l=>[l._brokerId,{id:l._brokerId,name:l.broker}])).values());
   const now=new Date();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
@@ -1773,7 +1729,8 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
             const statusCls=prog.met?"met":prog.pct>=50?"warn":"behind";
             const valLabel=prog.value==null?"Sin datos":g.metric_key==="tiempo_respuesta"?`${prog.value}h / ${prog.target}h`:`${prog.value} / ${prog.target}`;
             return(
-              <div key={g.id} className="goal-card-compact" style={{opacity:g.active?1:.5}}>
+              <div key={g.id} className="goal-card-compact" style={{opacity:g.active?1:.5}}
+                onClick={()=>setActiveGoalId(id=>id===g.id?null:g.id)}>
                 <div className="goal-compact-main">
                   <span className="goal-compact-title" title={g.title}>{g.title}</span>
                   <span className={`goal-status goal-status-${statusCls}`}>{prog.met?"Cumplida":prog.pct>=50?"En curso":"Atrasada"}</span>
@@ -1782,7 +1739,8 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
                 <div className="goal-compact-bar">
                   <div style={{height:"100%",borderRadius:3,background:barColor,width:`${prog.pct}%`,transition:"width .5s"}}/>
                 </div>
-                <div className="goal-card-actions">
+                <div className={`goal-card-actions${activeGoalId===g.id?" open":""}`}
+                  onClick={e=>e.stopPropagation()}>
                   <button className="btn btn-sm" onClick={()=>{setEditGoal(g);setShowGoalModal(true);}}>Editar</button>
                   <button className="btn btn-sm" onClick={()=>updateGoal(g.id,{active:!g.active}).then(refreshData)}>{g.active?"Pausar":"Activar"}</button>
                   <button className="btn btn-sm" style={{color:AV.rose}} onClick={()=>{if(confirm("¿Eliminar esta meta?"))deleteGoal(g.id).then(refreshData);}}>Eliminar</button>
