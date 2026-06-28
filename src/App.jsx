@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertLeadAsBroker, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, blockUnitAsBroker, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification, notifyAdmins, updateUltimoLeadAsignado } from "./lib/data";
 
@@ -143,14 +143,6 @@ const css = `
   .panel-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
   .panel-title{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);flex:1;}
   .panel-body{padding:16px 18px;}
-  .pipeline-wrap{position:relative;}
-  .pipeline-wrap::after{content:'';position:absolute;top:0;right:0;bottom:16px;width:48px;background:linear-gradient(to right,transparent,var(--bg-base));pointer-events:none;z-index:2;transition:opacity .2s;}
-  .pipeline-wrap.at-end::after{opacity:0;}
-  .pipeline-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;scrollbar-width:thin;scrollbar-color:var(--border) var(--bg-surface);}
-  .pipeline-scroll::-webkit-scrollbar{height:6px;}
-  .pipeline-scroll::-webkit-scrollbar-track{background:var(--bg-surface);}
-  .pipeline-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
-  .pipeline-scroll::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
   .pipeline-fuera-label{font-size:var(--fs-meta);color:var(--text-muted);}
   .pipeline-col{min-width:200px;width:200px;max-width:220px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px;flex-shrink:0;}
   .pipeline-col-empty{opacity:.45;border-style:dashed;}
@@ -166,11 +158,39 @@ const css = `
   .source-badge{padding:2px 7px;border-radius:4px;font-size:var(--fs-meta);font-weight:500;letter-spacing:.03em;}
   .lead-timer{font-size:var(--fs-meta);margin-top:6px;}
   .timer-hot{color:var(--danger);}.timer-warn{color:var(--warning);}.timer-ok{color:var(--accent);}
+  .pipeline-kanban-hdr{display:none;}
+  .pipeline-wrap{display:none;}
+  .pipeline-tabs-layout{display:none;}
   .pipeline-mobile{display:none;}
-  @media(max-width:640px){
-    .pipeline-scroll{display:none;}
-    .pipeline-mobile{display:flex;flex-direction:column;}
+  @media(min-width:1401px){
+    .pipeline-kanban-hdr{display:block;position:sticky;top:0;z-index:10;background:var(--bg-base);padding-bottom:4px;margin-bottom:0;}
+    .pipeline-kanban-hdr-inner{display:flex;gap:12px;overflow:hidden;}
+    .pipeline-kanban-hdr-col{min-width:200px;width:200px;max-width:220px;flex-shrink:0;background:var(--bg-surface);border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 10px;}
+    .pipeline-kanban-hdr-col.pipeline-col-empty{opacity:.45;border-style:dashed;border-bottom:none;}
+    .pipeline-wrap{display:block;position:relative;}
+    .pipeline-wrap::after{content:'';position:absolute;top:0;right:0;bottom:16px;width:48px;background:linear-gradient(to right,transparent,var(--bg-base));pointer-events:none;z-index:2;transition:opacity .2s;}
+    .pipeline-wrap.at-end::after{opacity:0;}
+    .pipeline-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;scrollbar-width:thin;scrollbar-color:var(--border) var(--bg-surface);}
+    .pipeline-scroll::-webkit-scrollbar{height:6px;}
+    .pipeline-scroll::-webkit-scrollbar-track{background:var(--bg-surface);}
+    .pipeline-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+    .pipeline-scroll::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
+    .pipeline-col{border-radius:0 0 10px 10px;}
+  }
+  @media(min-width:768px) and (max-width:1400px){
+    .pipeline-tabs-layout{display:flex;flex-direction:column;}
+    .pipeline-tabs-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none;margin-bottom:4px;}
+    .pipeline-tabs-row::-webkit-scrollbar{display:none;}
+    .pipeline-tab{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-dim);font-size:var(--fs-meta);cursor:pointer;transition:all .15s;white-space:nowrap;}
+    .pipeline-tab:hover{color:var(--text-primary);border-color:var(--accent-dim);}
+    .pipeline-tab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+    .pipeline-tab-count{font-size:11px;font-weight:600;background:var(--bg-deep);padding:1px 6px;border-radius:8px;}
+    .pipeline-tab.active .pipeline-tab-count{background:var(--accent-dim);color:var(--bg-base);}
+    .pipeline-tab-empty{opacity:.5;}
+  }
+  @media(max-width:767px){
     .pipeline-fuera-label{display:none;}
+    .pipeline-mobile{display:flex;flex-direction:column;}
     .pipeline-mob-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
     .pipeline-mob-btn{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text-primary);flex-shrink:0;}
     .pipeline-mob-btn:disabled{opacity:.25;cursor:default;}
@@ -2001,9 +2021,11 @@ function AdminPipeline({leads,onOpen,setView}){
   const [stageIdx,setStageIdx]=useState(0);
   const [atEnd,setAtEnd]=useState(false);
   const scrollRef=useRef(null);
+  const headerRef=useRef(null);
   const displayLeads=filterStage?leads.filter(l=>l.stage===filterStage):leads;
 
-  useEffect(()=>{
+  // Gradient fade tracker
+  useLayoutEffect(()=>{
     const el=scrollRef.current;
     if(!el)return;
     const check=()=>setAtEnd(el.scrollLeft+el.clientWidth>=el.scrollWidth-10);
@@ -2011,6 +2033,26 @@ function AdminPipeline({leads,onOpen,setView}){
     el.addEventListener('scroll',check,{passive:true});
     return()=>el.removeEventListener('scroll',check);
   },[filterStage]);
+
+  // Sticky header sync with kanban scroll (large desktop)
+  useLayoutEffect(()=>{
+    const scrollEl=scrollRef.current;
+    const headerEl=headerRef.current;
+    if(!scrollEl||!headerEl)return;
+    const sync=()=>{headerEl.scrollLeft=scrollEl.scrollLeft;};
+    scrollEl.addEventListener('scroll',sync,{passive:true});
+    return()=>scrollEl.removeEventListener('scroll',sync);
+  },[]);
+
+  // Scroll kanban to active stage when stageIdx changes (tabs/mobile → large desktop resize)
+  useLayoutEffect(()=>{
+    const el=scrollRef.current;
+    if(!el)return;
+    const col=stageIdx*(200+12);
+    if(col<el.scrollLeft||col+200>el.scrollLeft+el.clientWidth){
+      el.scrollLeft=col;
+    }
+  },[stageIdx]);
 
   if(filterStage){
     return(
@@ -2043,6 +2085,7 @@ function AdminPipeline({leads,onOpen,setView}){
 
   return(
     <>
+      {/* Repechaje / Perdido bar */}
       <div style={{marginBottom:16}}>
         <div className="panel" style={{padding:"10px 16px",display:"flex",gap:24,alignItems:"center"}}>
           {["repechaje","perdido"].map(s=>(
@@ -2055,33 +2098,74 @@ function AdminPipeline({leads,onOpen,setView}){
         </div>
       </div>
 
-      {/* Desktop: horizontal scroll board */}
-      <div className={`pipeline-wrap${atEnd?" at-end":""}`}>
-      <div className="pipeline-scroll" ref={scrollRef}>
-        {ps.map(stage=>{
-          const sl=leads.filter(l=>l.stage===stage.id);
-          return(
-            <div key={stage.id} className={`pipeline-col${sl.length===0?" pipeline-col-empty":""}`}>
-              <div className="pipeline-col-header">
+      {/* ── LARGE DESKTOP (>1400px): sticky header + kanban board ── */}
+      <div className="pipeline-kanban-hdr">
+        <div className="pipeline-kanban-hdr-inner" ref={headerRef}>
+          {ps.map(stage=>{
+            const cnt=leads.filter(l=>l.stage===stage.id).length;
+            return(
+              <div key={stage.id} className={`pipeline-kanban-hdr-col${cnt===0?" pipeline-col-empty":""}`}>
                 <div className="col-dot" style={{background:stage.dot}}/>
                 <div className="col-name">{stage.label}</div>
-                <div className="col-count">{sl.length}</div>
+                <div className="col-count">{cnt}</div>
               </div>
-              {sl.map(l=>(
-                <div key={l.id} className="lead-card" onClick={()=>onOpen(l)}>
-                  <LeadLink lead={l} onOpen={onOpen}/>
-                  <div className="lead-meta"><SrcBadge source={l.source}/>{l.interes&&<span style={{color:AV.textDim}}>{l.interes}</span>}</div>
-                  {l.asesor&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:4}}>{l.asesor}</div>}
-                  <div className={`lead-timer ${timerClass(l.lastActivity)}`}>{stage.id==="nuevo"?`⏱ Hace ${timeAgo(l.created)}`:`Últ. ${timeAgo(l.lastActivity)}`}</div>
-                </div>
-              ))}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
+      <div className={`pipeline-wrap${atEnd?" at-end":""}`}>
+        <div className="pipeline-scroll" ref={scrollRef}>
+          {ps.map(stage=>{
+            const sl=leads.filter(l=>l.stage===stage.id);
+            return(
+              <div key={stage.id} className={`pipeline-col${sl.length===0?" pipeline-col-empty":""}`}>
+                {sl.length===0
+                  ? <div style={{textAlign:"center",color:AV.muted,fontSize:"var(--fs-meta)",padding:"20px 0",opacity:.5}}>Sin leads</div>
+                  : sl.map(l=>(
+                    <div key={l.id} className="lead-card" onClick={()=>onOpen(l)}>
+                      <LeadLink lead={l} onOpen={onOpen}/>
+                      <div className="lead-meta"><SrcBadge source={l.source}/>{l.interes&&<span style={{color:AV.textDim}}>{l.interes}</span>}</div>
+                      {l.asesor&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:4}}>{l.asesor}</div>}
+                      <div className={`lead-timer ${timerClass(l.lastActivity)}`}>{stage.id==="nuevo"?`⏱ Hace ${timeAgo(l.created)}`:`Últ. ${timeAgo(l.lastActivity)}`}</div>
+                    </div>
+                  ))
+                }
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Mobile: single-stage navigator */}
+      {/* ── MEDIUM DESKTOP / TABLET (768–1400px): tabs + single column ── */}
+      <div className="pipeline-tabs-layout">
+        <div className="pipeline-tabs-row">
+          {ps.map((stage,i)=>{
+            const cnt=leads.filter(l=>l.stage===stage.id).length;
+            return(
+              <div key={stage.id} className={`pipeline-tab${i===stageIdx?" active":""}${cnt===0?" pipeline-tab-empty":""}`} onClick={()=>setStageIdx(i)}>
+                <div className="col-dot" style={{background:stage.dot}}/>
+                {stage.label}
+                <span className="pipeline-tab-count">{cnt}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div>
+          {curLeads.length===0
+            ? <div style={{textAlign:"center",color:AV.muted,fontSize:"var(--fs-meta)",padding:"40px 0",opacity:.5}}>Sin leads en este stage</div>
+            : curLeads.map(l=>(
+              <div key={l.id} className="lead-card" onClick={()=>onOpen(l)} style={{maxWidth:600}}>
+                <LeadLink lead={l} onOpen={onOpen}/>
+                <div className="lead-meta"><SrcBadge source={l.source}/>{l.interes&&<span style={{color:AV.textDim}}>{l.interes}</span>}</div>
+                {l.asesor&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:4}}>{l.asesor}</div>}
+                <div className={`lead-timer ${timerClass(curStage.id==="nuevo"?l.created:l.lastActivity)}`}>{curStage.id==="nuevo"?`⏱ Hace ${timeAgo(l.created)}`:`Últ. ${timeAgo(l.lastActivity)}`}</div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      {/* ── MOBILE (<768px): arrow navigator ── */}
       <div className="pipeline-mobile">
         <div className="pipeline-mob-nav">
           <button className="pipeline-mob-btn" onClick={()=>setStageIdx(i=>i-1)} disabled={stageIdx===0}>←</button>
