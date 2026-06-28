@@ -143,10 +143,15 @@ const css = `
   .panel-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
   .panel-title{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);flex:1;}
   .panel-body{padding:16px 18px;}
-  .pipeline-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;scrollbar-width:thick;scrollbar-color:var(--border-light) var(--bg-deep);}
-  .pipeline-scroll::-webkit-scrollbar{height:12px;}
-  .pipeline-scroll::-webkit-scrollbar-track{background:var(--bg-deep);}
-  .pipeline-scroll::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:6px;}
+  .pipeline-wrap{position:relative;}
+  .pipeline-wrap::after{content:'';position:absolute;top:0;right:0;bottom:16px;width:48px;background:linear-gradient(to right,transparent,var(--bg-base));pointer-events:none;z-index:2;transition:opacity .2s;}
+  .pipeline-wrap.at-end::after{opacity:0;}
+  .pipeline-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;scrollbar-width:thin;scrollbar-color:var(--border) var(--bg-surface);}
+  .pipeline-scroll::-webkit-scrollbar{height:6px;}
+  .pipeline-scroll::-webkit-scrollbar-track{background:var(--bg-surface);}
+  .pipeline-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+  .pipeline-scroll::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
+  .pipeline-fuera-label{font-size:var(--fs-meta);color:var(--text-muted);}
   .pipeline-col{min-width:200px;width:200px;max-width:220px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px;flex-shrink:0;}
   .pipeline-col-empty{opacity:.45;border-style:dashed;}
   .pipeline-col-header{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
@@ -164,7 +169,8 @@ const css = `
   .pipeline-mobile{display:none;}
   @media(max-width:640px){
     .pipeline-scroll{display:none;}
-    .pipeline-mobile{display:flex;flex-direction:column;height:calc(100vh - 260px);}
+    .pipeline-mobile{display:flex;flex-direction:column;}
+    .pipeline-fuera-label{display:none;}
     .pipeline-mob-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
     .pipeline-mob-btn{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text-primary);flex-shrink:0;}
     .pipeline-mob-btn:disabled{opacity:.25;cursor:default;}
@@ -174,7 +180,7 @@ const css = `
     .pipeline-mob-dots{display:flex;gap:4px;}
     .pipeline-mob-dot{width:5px;height:5px;border-radius:50%;background:var(--border-light);transition:background .15s;}
     .pipeline-mob-dot.active{background:var(--accent);}
-    .pipeline-mob-cards{flex:1;overflow-y:auto;padding-bottom:8px;}
+    .pipeline-mob-cards{padding-bottom:8px;}
     .pipeline-mob-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;}
     .pipeline-mob-card:hover{border-color:var(--accent-dim);}
     .pipeline-mob-row{display:flex;align-items:center;gap:6px;}
@@ -1993,7 +1999,18 @@ function AdminPipeline({leads,onOpen,setView}){
   const ps=STAGES.filter(s=>!["repechaje","perdido"].includes(s.id));
   const [filterStage,setFilterStage]=useState(null);
   const [stageIdx,setStageIdx]=useState(0);
+  const [atEnd,setAtEnd]=useState(false);
+  const scrollRef=useRef(null);
   const displayLeads=filterStage?leads.filter(l=>l.stage===filterStage):leads;
+
+  useEffect(()=>{
+    const el=scrollRef.current;
+    if(!el)return;
+    const check=()=>setAtEnd(el.scrollLeft+el.clientWidth>=el.scrollWidth-10);
+    check();
+    el.addEventListener('scroll',check,{passive:true});
+    return()=>el.removeEventListener('scroll',check);
+  },[filterStage]);
 
   if(filterStage){
     return(
@@ -2034,12 +2051,13 @@ function AdminPipeline({leads,onOpen,setView}){
               <span style={{fontSize:"var(--fs-meta)",color:AV.textDim}}>{leads.filter(l=>l.stage===s).length}</span>
             </button>
           ))}
-          <div style={{marginLeft:"auto",fontSize:"var(--fs-meta)",color:AV.muted}}>Fuera del pipeline activo</div>
+          <div className="pipeline-fuera-label" style={{marginLeft:"auto"}}>Fuera del pipeline activo</div>
         </div>
       </div>
 
       {/* Desktop: horizontal scroll board */}
-      <div className="pipeline-scroll" style={{height:"calc(100vh - 280px)"}}>
+      <div className={`pipeline-wrap${atEnd?" at-end":""}`}>
+      <div className="pipeline-scroll" ref={scrollRef}>
         {ps.map(stage=>{
           const sl=leads.filter(l=>l.stage===stage.id);
           return(
@@ -2060,6 +2078,7 @@ function AdminPipeline({leads,onOpen,setView}){
             </div>
           );
         })}
+      </div>
       </div>
 
       {/* Mobile: single-stage navigator */}
