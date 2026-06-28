@@ -214,6 +214,11 @@ export async function blockUnit(id, reason, until) {
   if (error) throw error;
 }
 
+export async function blockUnitAsBroker(id, reason) {
+  const { error } = await supabase.rpc("block_unit_as_broker", { p_unit_id: id, p_reason: reason });
+  if (error) throw error;
+}
+
 export async function reassignLeadAsesor(leadId, newAsesorId, oldName, newName, byName) {
   const { error } = await supabase.from("leads").update({ asesor_id: newAsesorId }).eq("id", leadId);
   if (error) throw error;
@@ -245,6 +250,24 @@ export async function insertLead({ name, phone, source, campaign, interes, notes
     lead_id: lead.id,
     action: "Lead creado",
     note: `Ingresado manualmente${notes ? ` · ${notes}` : ""}`,
+    by: authorName,
+  });
+  if (histError) throw histError;
+  return lead.id;
+}
+
+export async function insertLeadAsBroker({ name, phone, brokerId, authorName }) {
+  const maskedPhone = `****${phone.slice(-4)}`;
+  const { data: lead, error } = await supabase
+    .from("leads")
+    .insert({ name, phone: maskedPhone, source: "broker", broker_id: brokerId, stage: "nuevo" })
+    .select()
+    .single();
+  if (error) throw error;
+  const { error: histError } = await supabase.from("lead_historia").insert({
+    lead_id: lead.id,
+    action: "Lead creado por broker",
+    note: `Ingresado por ${authorName}`,
     by: authorName,
   });
   if (histError) throw histError;

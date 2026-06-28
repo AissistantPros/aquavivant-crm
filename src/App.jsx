@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
-import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification, notifyAdmins, updateUltimoLeadAsignado } from "./lib/data";
+import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertLeadAsBroker, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, blockUnitAsBroker, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification, notifyAdmins, updateUltimoLeadAsignado } from "./lib/data";
 
 const AV = {
   obsidian:   "var(--bg-base)",
@@ -2843,8 +2843,10 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
 }
 
 // ── MIS LEADS ─────────────────────────────────────────────────────────────────
-function AsesorMisLeads({leads,onOpen,currentUser}){
-  const mis=leads.filter(l=>l.asesor===currentUser?.name);
+function AsesorMisLeads({leads,onOpen,currentUser,role}){
+  const mis=role==="broker"
+    ?leads.filter(l=>l._brokerId===currentUser?.id)
+    :leads.filter(l=>l._asesorId===currentUser?.id);
   return(
     <div className="panel">
       <div className="panel-header"><div className="panel-title">Mis leads</div><span style={{fontSize:"var(--fs-meta)",color:AV.muted}}>{mis.length} asignados</span></div>
@@ -2868,7 +2870,7 @@ function AsesorMisLeads({leads,onOpen,currentUser}){
   );
 }
 
-function VendedorInventario({units,currentUser,canBlock,refreshData}){
+function VendedorInventario({units,currentUser,canBlock,brokerMode,refreshData}){
   const [blocking,setBlocking]=useState(null);
   return(
     <>
@@ -2877,14 +2879,14 @@ function VendedorInventario({units,currentUser,canBlock,refreshData}){
           <div key={s} className="stat-card"><div className="stat-label">{l}</div><div className="stat-value" style={{color:c}}>{units.filter(u=>u.status===s).length}</div></div>
         ))}
       </div>
-      {!canBlock&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:14}}>No tienes permiso para bloquear propiedades. Pídeselo a un administrador si lo necesitas.</div>}
+      {!canBlock&&!brokerMode&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginBottom:14}}>No tienes permiso para bloquear propiedades. Pídeselo a un administrador si lo necesitas.</div>}
       <div className="panel">
         <div className="panel-header"><span>🏗️</span><div className="panel-title">Inventario</div></div>
         <div className="panel-body">
           <div className="units-grid">
             {units.map(u=>{
               const blockedByMe=u.status==="bloqueada"&&u.blockedBy===currentUser?.name;
-              const canBlockThis=canBlock&&u.status==="disponible"&&u.vendedorBlockAllowed;
+              const canBlockThis=brokerMode?u.status==="disponible":canBlock&&u.status==="disponible"&&u.vendedorBlockAllowed;
               return(
                 <div key={u.num} className="unit-card">
                   <div className="unit-num">{u.num}</div>
@@ -2894,14 +2896,15 @@ function VendedorInventario({units,currentUser,canBlock,refreshData}){
                     {u.status==="disponible"&&"🟢 Disponible"}{u.status==="apartada"&&"🟡 Apartada"}{u.status==="bloqueada"&&"🔴 Bloqueada"}{u.status==="vendida"&&"⚫ Vendida"}
                   </div>
                   {u.status==="bloqueada"&&<div style={{fontSize:11,color:AV.textDim,marginTop:2}}>{blockedByMe?"Bloqueada por ti":`Por: ${u.blockedBy||"—"}`}{u.vence?` · vence ${u.vence}`:" · permanente"}</div>}
-                  {canBlockThis&&<button className="btn" style={{marginTop:6,padding:"3px 8px",fontSize:11}} onClick={()=>setBlocking(u)}>Bloquear</button>}
+                  {canBlockThis&&<button className="btn" style={{marginTop:6,padding:"3px 8px",fontSize:11}} onClick={()=>setBlocking(u)}>{brokerMode?"Reservar 50h":"Bloquear"}</button>}
                 </div>
               );
             })}
           </div>
         </div>
       </div>
-      {blocking&&<VendedorBlockModal unit={blocking} onClose={()=>setBlocking(null)} onSaved={refreshData}/>}
+      {blocking&&!brokerMode&&<VendedorBlockModal unit={blocking} onClose={()=>setBlocking(null)} onSaved={refreshData}/>}
+      {blocking&&brokerMode&&<BrokerBlockModal unit={blocking} onClose={()=>setBlocking(null)} onSaved={refreshData}/>}
     </>
   );
 }
@@ -2934,6 +2937,65 @@ function VendedorBlockModal({unit,onClose,onSaved}){
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" disabled={!reason||!until||saving} onClick={handleBlock}>{saving?"Bloqueando...":"Bloquear"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrokerNewLeadModal({onClose,onSave}){
+  const [f,setF]=useState({name:"",phone:""});
+  const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  const validPhone=/^\d{4}$/.test(f.phone);
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal slide-in" onClick={e=>e.stopPropagation()}>
+        <div className="modal-title">Registrar Lead</div>
+        <div className="modal-sub">El equipo de ventas lo contactará. Solo necesitas el nombre y los últimos 4 dígitos del teléfono.</div>
+        <div className="form-group">
+          <label className="form-label">Nombre *</label>
+          <input className="form-input" placeholder="Ej: Juan G." value={f.name} onChange={e=>s("name",e.target.value)}/>
+          <div style={{fontSize:"var(--fs-meta)",color:"var(--text-muted)",marginTop:4}}>Nombre y primera letra del apellido por privacidad.</div>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Últimos 4 dígitos del teléfono *</label>
+          <input className="form-input" placeholder="1234" value={f.phone} maxLength={4} inputMode="numeric"
+            onChange={e=>s("phone",e.target.value.replace(/\D/g,""))}/>
+          <div style={{fontSize:"var(--fs-meta)",color:"var(--text-muted)",marginTop:4}}>Se guardará como ****{f.phone||"XXXX"}.</div>
+        </div>
+        <div className="modal-actions">
+          <button className="btn" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!f.name.trim()||!validPhone} onClick={()=>{onSave(f);onClose();}}>Registrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrokerBlockModal({unit,onClose,onSaved}){
+  const [reason,setReason]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  const handleBlock=async()=>{
+    setSaving(true);setError("");
+    try{
+      await blockUnitAsBroker(unit._id,reason);
+      await onSaved();
+      onClose();
+    }catch(e){
+      setError(e.message||"No se pudo bloquear la unidad.");
+    }finally{setSaving(false);}
+  };
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal slide-in" onClick={e=>e.stopPropagation()}>
+        <div className="modal-title">Reservar Unidad {unit.num}</div>
+        <div className="modal-sub">La reserva es por 50 horas. El administrador puede liberarla antes si es necesario.</div>
+        <div className="form-group"><label className="form-label">Motivo</label><input className="form-input" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Ej. Cliente en proceso de decisión"/></div>
+        {error&&<div style={{fontSize:"var(--fs-meta)",color:"var(--rose)",marginBottom:8}}>{error}</div>}
+        <div className="modal-actions">
+          <button className="btn" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!reason||saving} onClick={handleBlock}>{saving?"Reservando...":"Reservar 50h"}</button>
         </div>
       </div>
     </div>
@@ -3020,7 +3082,7 @@ export default function AquaVivantCRM(){
     return()=>clearInterval(id);
   },[currentUser?.id]);
 
-  useEffect(()=>setView(role==="admin"?"dashboard":"tareas"),[role]);
+  useEffect(()=>setView(role==="admin"?"dashboard":role==="broker"?"mis_leads":"tareas"),[role]);
 
   const allComputedNotifs=computeNotifs(leads,units,asesores,goals,role);
   const computedNotifs=allComputedNotifs.filter(n=>!dismissedAlerts.includes(n.id));
@@ -3042,7 +3104,12 @@ export default function AquaVivantCRM(){
     {id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifBadge},
     {s:"Información"},{id:"inventario",label:"Inventario",icon:"🏗️"},
   ];
-  const navItems=role==="admin"?adminNav:vendedorNav;
+  const brokerNav=[
+    {s:"Mis leads"},{id:"mis_leads",label:"Mis Leads",icon:"◉"},
+    {id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifBadge},
+    {s:"Información"},{id:"inventario",label:"Inventario",icon:"🏗️"},
+  ];
+  const navItems=role==="admin"?adminNav:role==="broker"?brokerNav:vendedorNav;
   const titles={dashboard:"Dashboard",notificaciones:"Notificaciones",pipeline:"Pipeline de ventas",leads:"Todos los leads",equipo:"Equipo & Asignaciones",inventario:"Inventario de unidades",tareas:"Mis tareas del día",mis_leads:"Mis leads"};
 
   async function addLead(f){
@@ -3072,6 +3139,13 @@ export default function AquaVivantCRM(){
         updateUltimoLeadAsignado(asignado.id),
       ]).catch(()=>{});
     }
+    await refreshData();
+  }
+
+  const [showBrokerNewLead,setShowBrokerNewLead]=useState(false);
+
+  async function addLeadAsBroker(f){
+    await insertLeadAsBroker({name:f.name,phone:f.phone,brokerId:currentUser?.id,authorName:currentUser?.name||"Broker"});
     await refreshData();
   }
 
@@ -3139,6 +3213,7 @@ export default function AquaVivantCRM(){
               <>
                 <div className="topbar-title" style={{flex:1,marginLeft:0,fontSize:18}}>{titles[view]||"Aqua Vivant"}</div>
                 {role==="admin"&&<button className="btn btn-primary" onClick={()=>setShowNewLead(true)} style={{minWidth:44,minHeight:44,padding:"6px 10px"}}>➕</button>}
+                {role==="broker"&&<button className="btn btn-primary" onClick={()=>setShowBrokerNewLead(true)} style={{minWidth:44,minHeight:44,padding:"6px 10px"}}>➕</button>}
                 <button className="theme-toggle" onClick={toggleTheme} title={theme==="dark"?"Cambiar a tema claro":"Cambiar a tema oscuro"}>{theme==="dark"?"☀️":"🌙"}</button>
                 <button onClick={()=>setShowMobileSidebar(!showMobileSidebar)} style={{background:"none",border:"none",color:AV.text,fontSize:20,cursor:"pointer",padding:"8px 12px",minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
               </>
@@ -3147,6 +3222,7 @@ export default function AquaVivantCRM(){
                 <div className="topbar-title">{titles[view]||""}</div>
                 <div className="topbar-actions">
                   {role==="admin"&&<button className="btn btn-primary" onClick={()=>setShowNewLead(true)}>+ Nuevo lead</button>}
+                  {role==="broker"&&<button className="btn btn-primary" onClick={()=>setShowBrokerNewLead(true)}>+ Registrar lead</button>}
                   <div style={{width:8,height:8,borderRadius:"50%",background:AV.teal}} className="pulse"/>
                   <span style={{fontSize:"var(--fs-body)",color:AV.muted}}>En línea</span>
                   <button className="theme-toggle" onClick={toggleTheme} title={theme==="dark"?"Cambiar a tema claro":"Cambiar a tema oscuro"}>{theme==="dark"?"☀️":"🌙"}</button>
@@ -3164,12 +3240,13 @@ export default function AquaVivantCRM(){
             {role==="admin"&&view==="inventario"     &&<AdminInventario units={units} towers={towers} refreshData={refreshData}/>}
             {view==="notificaciones"&&<NotifPanel computedNotifs={computedNotifs} storedNotifs={storedNotifs} onMarkRead={handleMarkRead} onDismiss={dismissAlert} setView={setView} role={role}/>}
             {(role==="vendedor"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser} projectConfig={projectConfig} refreshData={refreshData}/>}
-            {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="mis_leads" &&<AsesorMisLeads leads={leads} onOpen={setFicha} currentUser={currentUser}/>}
-            {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={role==="vendedor"&&!!currentUser?.canBlockUnits} refreshData={refreshData}/>}
+            {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="mis_leads" &&<AsesorMisLeads leads={leads} onOpen={setFicha} currentUser={currentUser} role={role}/>}
+            {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={role==="vendedor"&&!!currentUser?.canBlockUnits} brokerMode={role==="broker"} refreshData={refreshData}/>}
             </>)}
           </div>
         </main>
-        {showNewLead&&<NewLeadModal onClose={()=>setShowNewLead(false)} onSave={addLead} asesores={asesores}/>}
+        {showNewLead&&role==="admin"&&<NewLeadModal onClose={()=>setShowNewLead(false)} onSave={addLead} asesores={asesores}/>}
+        {showBrokerNewLead&&role==="broker"&&<BrokerNewLeadModal onClose={()=>setShowBrokerNewLead(false)} onSave={addLeadAsBroker}/>}
         {ficha&&<FichaModal lead={ficha} onClose={()=>setFicha(null)} asesores={asesores} onReassign={handleReassignLead}/>}
         {showProfileModal&&<UserProfileModal user={currentUser} onClose={()=>{setShowProfileModal(false);if(isMobile)setShowMobileSidebar(false);}} onSave={async(data)=>{await updateOwnProfile(currentUser.id,data);setCurrentUser(p=>({...p,...data}));}}/>}
         {!showChat&&<button onClick={()=>setShowChat(true)} style={{position:"fixed",bottom:20,right:20,width:56,height:56,borderRadius:"50%",background:AV.teal,border:"none",cursor:"pointer",color:AV.bg,fontSize:24,display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,boxShadow:"0 4px 12px rgba(45,212,191,.3)"}}  title="Abrir chat con IA">💬</button>}
