@@ -2508,9 +2508,11 @@ function computeTareas(leads,currentUser,projectConfig){
   const primerContactoMs=(Number(projectConfig?.crm_tiempo_primer_contacto_min??30))*60000;
   const seguimientoMs=(Number(projectConfig?.crm_intervalo_intentos_horas??24))*3600000;
   const isAdmin=currentUser?.role==="admin";
+  const isBroker=currentUser?.role==="broker";
   const myLeads=leads.filter(l=>{
     if(!PIPELINE_STAGES_SET.has(l.stage))return false;
     if(isAdmin)return true;
+    if(isBroker)return l._brokerId===currentUser?.id;
     return l._asesorId===currentUser?.id;
   });
   const tasks=[];
@@ -2951,7 +2953,7 @@ function BrokerNewLeadModal({onClose,onSave}){
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal slide-in" onClick={e=>e.stopPropagation()}>
         <div className="modal-title">Registrar Lead</div>
-        <div className="modal-sub">El equipo de ventas lo contactará. Solo necesitas el nombre y los últimos 4 dígitos del teléfono.</div>
+        <div className="modal-sub">Registra a tu cliente. Por privacidad, solo guarda nombre parcial y los últimos 4 dígitos del teléfono.</div>
         <div className="form-group">
           <label className="form-label">Nombre *</label>
           <input className="form-input" placeholder="Ej: Juan G." value={f.name} onChange={e=>s("name",e.target.value)}/>
@@ -3082,7 +3084,7 @@ export default function AquaVivantCRM(){
     return()=>clearInterval(id);
   },[currentUser?.id]);
 
-  useEffect(()=>setView(role==="admin"?"dashboard":role==="broker"?"mis_leads":"tareas"),[role]);
+  useEffect(()=>setView(role==="admin"?"dashboard":"tareas"),[role]);
 
   const allComputedNotifs=computeNotifs(leads,units,asesores,goals,role);
   const computedNotifs=allComputedNotifs.filter(n=>!dismissedAlerts.includes(n.id));
@@ -3105,7 +3107,7 @@ export default function AquaVivantCRM(){
     {s:"Información"},{id:"inventario",label:"Inventario",icon:"🏗️"},
   ];
   const brokerNav=[
-    {s:"Mis leads"},{id:"mis_leads",label:"Mis Leads",icon:"◉"},
+    {s:"Mi día"},{id:"tareas",label:"Mis Tareas",icon:"✓"},{id:"mis_leads",label:"Mis Leads",icon:"◉"},
     {id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifBadge},
     {s:"Información"},{id:"inventario",label:"Inventario",icon:"🏗️"},
   ];
@@ -3239,7 +3241,7 @@ export default function AquaVivantCRM(){
             {role==="admin"&&view==="equipo"         &&<AdminEquipo leads={leads} asesores={asesores} refreshData={refreshData} onOpen={setFicha}/>}
             {role==="admin"&&view==="inventario"     &&<AdminInventario units={units} towers={towers} refreshData={refreshData}/>}
             {view==="notificaciones"&&<NotifPanel computedNotifs={computedNotifs} storedNotifs={storedNotifs} onMarkRead={handleMarkRead} onDismiss={dismissAlert} setView={setView} role={role}/>}
-            {(role==="vendedor"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser} projectConfig={projectConfig} refreshData={refreshData}/>}
+            {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser} projectConfig={projectConfig} refreshData={refreshData}/>}
             {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="mis_leads" &&<AsesorMisLeads leads={leads} onOpen={setFicha} currentUser={currentUser} role={role}/>}
             {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={role==="vendedor"&&!!currentUser?.canBlockUnits} brokerMode={role==="broker"} refreshData={refreshData}/>}
             </>)}
