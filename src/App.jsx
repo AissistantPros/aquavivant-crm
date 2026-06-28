@@ -183,12 +183,13 @@ const css = `
   .chip-nuevo{background:rgba(45,212,191,.1);color:#2dd4bf;border:1px solid #1a8a7a;}
   .chip-contactado{background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid #1d4ed8;}
   .chip-calificado{background:rgba(74,222,128,.1);color:#4ade80;border:1px solid #166534;}
-  .chip-visita-agendada{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid #92400e;}
-  .chip-visita-realizada{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid #4c1d95;}
-  .chip-documentacion{background:rgba(236,72,153,.1);color:#ec4899;border:1px solid #be185d;}
+  .chip-cita-agendada{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid #92400e;}
+  .chip-visita-hecha{background:rgba(129,140,248,.1);color:#818cf8;border:1px solid #3730a3;}
+  .chip-cotizacion{background:rgba(56,189,248,.1);color:#38bdf8;border:1px solid #0369a1;}
+  .chip-venta{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid #4c1d95;}
   .chip-negociacion{background:rgba(251,146,60,.1);color:#fb923c;border:1px solid #7c2d12;}
   .chip-apartado{background:rgba(74,222,128,.15);color:#4ade80;border:1px solid #166534;}
-  .chip-escriturado{background:rgba(16,185,129,.1);color:#10b981;border:1px solid #065f46;}
+  .chip-escritura{background:rgba(16,185,129,.1);color:#10b981;border:1px solid #065f46;}
   .chip-repechaje{background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid #334155;}
   .chip-perdido{background:rgba(251,113,133,.1);color:#fb7185;border:1px solid #9f1239;}
   .chip-inactivo{background:rgba(74,94,116,.2);color:var(--text-muted);border:1px solid var(--border);}
@@ -377,18 +378,20 @@ const STAGES=[
   {id:"nuevo",           label:"Nuevo",           dot:"#2dd4bf"},
   {id:"contactado",      label:"Contactado",      dot:"#60a5fa"},
   {id:"calificado",      label:"Calificado",      dot:"#4ade80"},
-  {id:"visita_agendada", label:"Visita Agendada", dot:"#fbbf24"},
-  {id:"visita_realizada",label:"Visita Realizada",dot:"#a78bfa"},
-  {id:"documentacion",   label:"En Documentación",dot:"#ec4899"},
+  {id:"cita_agendada",   label:"Cita Agendada",   dot:"#fbbf24"},
+  {id:"visita_hecha",    label:"Visita Hecha",    dot:"#818cf8"},
+  {id:"cotizacion",      label:"Cotización",      dot:"#38bdf8"},
   {id:"negociacion",     label:"Negociación",     dot:"#fb923c"},
   {id:"apartado",        label:"Apartado",        dot:"#4ade80"},
-  {id:"escriturado",     label:"Escriturado",     dot:"#10b981"},
+  {id:"venta",           label:"Venta",           dot:"#a78bfa"},
+  {id:"escritura",       label:"Escritura",       dot:"#10b981"},
 ];
 const STAGE_LABELS={
   nuevo:"Nuevo",contactado:"Contactado",calificado:"Calificado",
-  visita_agendada:"Visita Agendada",visita_realizada:"Visita Realizada",
-  documentacion:"En Documentación",negociacion:"Negociación",apartado:"Apartado",
-  escriturado:"Escriturado",repechaje:"Repechaje",perdido:"Perdido",
+  cita_agendada:"Cita Agendada",visita_hecha:"Visita Hecha",
+  cotizacion:"Cotización",negociacion:"Negociación",apartado:"Apartado",
+  venta:"Venta",escritura:"Escritura",
+  repechaje:"Repechaje",perdido:"Perdido",
 };
 const NOTIFS=[
   {id:1,text:"Nuevo lead de <strong>Meta Ads</strong>: Daniela Vega — hace 8 min. Sin asignar.",time:"08:52",color:"#2dd4bf"},
@@ -416,13 +419,13 @@ function ini(name){return(name||"").split(" ").map(n=>n[0]).join("").slice(0,2);
 
 // METRICS HELPERS
 function get30DaysAgo(){return Date.now()-30*86400000;}
-const ACTIVE_LEAD_STAGES=["calificado","visita_agendada","negociacion","apartado"];
+const ACTIVE_LEAD_STAGES=["calificado","cita_agendada","visita_hecha","cotizacion","negociacion","apartado"];
 const FUNNEL_STAGES=[
   {id:"nuevo",label:"Nuevo"},{id:"contactado",label:"Contactado"},{id:"calificado",label:"Calificado"},
-  {id:"visita_agendada",label:"Visita Agendada"},{id:"negociacion",label:"Negociación"},{id:"apartado",label:"Apartado"},
+  {id:"cita_agendada",label:"Cita Agendada"},{id:"negociacion",label:"Negociación"},{id:"apartado",label:"Apartado"},
 ];
 const MARKETING_SOURCES=["instagram","facebook","whatsapp","meta","google","web","tiktok","gmb"];
-const STALE_LEAD_STAGES=["nuevo","contactado","calificado","visita_agendada","negociacion"];
+const STALE_LEAD_STAGES=["nuevo","contactado","calificado","cita_agendada","negociacion"];
 const STALE_HOURS=48;
 const SOURCE_SILENCE_DAYS=5;
 
@@ -563,7 +566,7 @@ function LoginModal({onLogin}){
 // ATOMS
 function SrcBadge({source}){const s=SOURCES[source]||SOURCES.manual;return<span className="source-badge" style={{background:s.bg,color:s.color}}>{s.label}</span>;}
 function StageChip({stage}){
-  const map={nuevo:"chip-nuevo",contactado:"chip-contactado",calificado:"chip-calificado",visita_agendada:"chip-visita-agendada",visita_realizada:"chip-visita-realizada",negociacion:"chip-negociacion",apartado:"chip-apartado",repechaje:"chip-repechaje",perdido:"chip-perdido"};
+  const map={nuevo:"chip-nuevo",contactado:"chip-contactado",calificado:"chip-calificado",cita_agendada:"chip-cita-agendada",visita_hecha:"chip-visita-hecha",cotizacion:"chip-cotizacion",negociacion:"chip-negociacion",apartado:"chip-apartado",venta:"chip-venta",escritura:"chip-escritura",repechaje:"chip-repechaje",perdido:"chip-perdido"};
   return<span className={`chip ${map[stage]||""}`}>{STAGE_LABELS[stage]||stage}</span>;
 }
 function LeadLink({lead,onOpen}){return<button className="lead-link" onClick={e=>{e.stopPropagation();onOpen(lead);}}>{lead.name}</button>;}
@@ -1510,7 +1513,7 @@ function StepTaskModal({task,onClose,saving,onSave}){
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-const QUALIFYING_STAGES=["calificado","visita_agendada","visita_realizada","documentacion","negociacion","apartado","escriturado","vendido"];
+const QUALIFYING_STAGES=["calificado","cita_agendada","visita_hecha","cotizacion","negociacion","apartado","venta","escritura"];
 
 function semaforoColor(cplc,pct){
   if(cplc==null) return "rojo";
@@ -1604,9 +1607,9 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
   const enEscrituracion=units.filter(u=>u.escrituraStatus==="en_proceso").length;
   const apartadasCount=units.filter(u=>u.status==="apartada").length;
   const enNegociacion=leads.filter(l=>l.stage==="negociacion").length;
-  const enDocumentacion=leads.filter(l=>l.stage==="documentacion").length;
-  const visitasRealizadasMes=leads.filter(l=>l.stage==="visita_realizada"&&l.lastActivity>=monthStart).length;
-  const visitasAgendadas=leads.filter(l=>l.stage==="visita_agendada").length;
+  const enCotizacion=leads.filter(l=>l.stage==="cotizacion").length;
+  const visitasHechasMes=leads.filter(l=>l.stage==="visita_hecha"&&l.lastActivity>=monthStart).length;
+  const citasAgendadas=leads.filter(l=>l.stage==="cita_agendada").length;
   const leadsCalificados=leads.filter(l=>l.stage==="calificado").length;
   const leadsContactados=leads.filter(l=>l.stage==="contactado").length;
 
@@ -1655,9 +1658,9 @@ function AdminDashboard({leads,asesores,units,towers,onOpen,marketingSpend,proje
     {label:"Escrituración",val:enEscrituracion,cls:"stat-warn",stage:null},
     {label:"Apartadas",val:apartadasCount,stage:"apartado"},
     {label:"Negociación",val:enNegociacion,stage:"negociacion"},
-    {label:"Documentación",val:enDocumentacion,stage:"documentacion"},
-    {label:"Visitas realizadas",val:visitasRealizadasMes,stage:"visita_realizada"},
-    {label:"Agendadas",val:visitasAgendadas,stage:"visita_agendada"},
+    {label:"Cotización",val:enCotizacion,stage:"cotizacion"},
+    {label:"Visitas hechas",val:visitasHechasMes,stage:"visita_hecha"},
+    {label:"Citas agendadas",val:citasAgendadas,stage:"cita_agendada"},
     {label:"Calificados",val:leadsCalificados,stage:"calificado"},
     {label:"Contactados",val:leadsContactados,stage:"contactado"},
   ];
@@ -2498,7 +2501,7 @@ function NewUnitModal({tower,onClose,onSaved}){
 }
 
 // ── ASESOR TAREAS ─────────────────────────────────────────────────────────────
-const PIPELINE_STAGES_SET=new Set(["nuevo","contactado","calificado","visita_agendada","visita_realizada","documentacion","negociacion","apartado","escriturado"]);
+const PIPELINE_STAGES_SET=new Set(["nuevo","contactado","calificado","cita_agendada","visita_hecha","cotizacion","negociacion","apartado","venta","escritura"]);
 
 function computeTareas(leads,currentUser,projectConfig){
   const now=Date.now();
@@ -2523,7 +2526,7 @@ function computeTareas(leads,currentUser,projectConfig){
         desc:`Sin actividad hace ${timeAgo(l.lastActivity)}.`,
         urgency:"normal",time:timeAgo(l.lastActivity)});
     }
-    if(l.stage==="visita_agendada"&&l.fechaCita){
+    if(l.stage==="cita_agendada"&&l.fechaCita){
       const diff=now-l.fechaCita;
       if(diff>=12*3600000&&diff<=72*3600000){
         tasks.push({id:`postvisita_${l.id}`,type:"post_visita",title:"Post-visita",lead:l.name,leadId:l.id,
@@ -2571,11 +2574,11 @@ function computeNotifs(leads,units,asesores,metas,role){
 
   // Recordatorio pre-visita (24h antes) — informativa, sin acción directa
   if(role==="vendedor"||role==="admin"){
-    leads.filter(l=>l.stage==="visita_agendada"&&l.fechaCita).forEach(l=>{
+    leads.filter(l=>l.stage==="cita_agendada"&&l.fechaCita).forEach(l=>{
       const diff=l.fechaCita-now;
       if(diff>0&&diff<=24*3600000)
         notifs.push({id:`cita_prox_${l.id}`,tipo:"cita_proxima",urgency:"normal",kind:"informativa",
-          titulo:`Visita mañana: ${l.name}`,
+          titulo:`Cita mañana: ${l.name}`,
           mensaje:`${new Date(l.fechaCita).toLocaleString("es-MX",{weekday:"short",hour:"2-digit",minute:"2-digit"})}`});
     });
   }
@@ -2682,7 +2685,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
       if(resultado==="talked"){
         const agendoCita=cal.agendaCita==="Sí";
         await updateLeadStage(task.leadId,{
-          stage:agendoCita?"visita_agendada":"calificado",
+          stage:agendoCita?"cita_agendada":"calificado",
           fechaCita:agendoCita&&cal.fechaCita?new Date(cal.fechaCita).toISOString():agendoCita?undefined:null,
           proximoContactoAt:null,
           presupuestoMin:cal.presupuestoMin?Number(cal.presupuestoMin):undefined,
@@ -2734,7 +2737,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
         const agendo=agendaVisita==="Sí";
         const notaParts=[animo&&`Ánimo: ${animo}`,acordado&&`Acuerdo: ${acordado}`,notas].filter(Boolean);
         await updateLeadStage(task.leadId,{
-          stage:agendo?"visita_agendada":undefined,
+          stage:agendo?"cita_agendada":undefined,
           fechaCita:agendo&&fechaVisita?new Date(fechaVisita).toISOString():agendo?undefined:undefined,
           proximoContactoAt:null,
           action:"Seguimiento — hablamos",
@@ -2769,10 +2772,10 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
           ans.preguntas&&`Preguntas: ${ans.preguntas}`,
           ans.enQueQuedaron&&`Siguiente paso: ${ans.enQueQuedaron}`,
         ].filter(Boolean).join(" | ");
-        await updateLeadStage(task.leadId,{stage:"visita_realizada",action:"Visita realizada",nota:notaVisita,by});
+        await updateLeadStage(task.leadId,{stage:"visita_hecha",action:"Visita realizada",nota:notaVisita,by});
       }else if(ans.nuevaFecha){
         await updateLeadStage(task.leadId,{
-          stage:"visita_agendada",
+          stage:"cita_agendada",
           fechaCita:new Date(ans.nuevaFecha).getTime(),
           action:"Visita reagendada",
           nota:ans.motivo?`No asistió — motivo: ${ans.motivo}. Nueva fecha: ${new Date(ans.nuevaFecha).toLocaleString("es-MX")}`:`Nueva fecha: ${new Date(ans.nuevaFecha).toLocaleString("es-MX")}`,
