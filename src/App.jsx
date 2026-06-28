@@ -147,11 +147,12 @@ const css = `
   .pipeline-scroll::-webkit-scrollbar{height:12px;}
   .pipeline-scroll::-webkit-scrollbar-track{background:var(--bg-deep);}
   .pipeline-scroll::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:6px;}
-  .pipeline-col{min-width:160px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px;flex-shrink:0;}
-  .pipeline-col-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);}
-  .col-dot{width:8px;height:8px;border-radius:50%;}
-  .col-name{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);flex:1;}
-  .col-count{font-size:var(--fs-meta);color:var(--text-muted);background:var(--bg-deep);padding:2px 7px;border-radius:10px;}
+  .pipeline-col{min-width:200px;width:200px;max-width:220px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px;flex-shrink:0;}
+  .pipeline-col-empty{opacity:.45;border-style:dashed;}
+  .pipeline-col-header{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+  .col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .col-name{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .col-count{font-size:11px;font-weight:600;color:var(--text-muted);background:var(--bg-deep);padding:2px 6px;border-radius:10px;flex-shrink:0;}
   .lead-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all .15s;}
   .lead-card:hover{border-color:var(--accent-dim);}
   .lead-link{font-size:var(--fs-meta);font-weight:500;color:var(--accent);cursor:pointer;background:none;border:none;padding:0;font-family:var(--font-body);transition:color .15s;text-align:left;}
@@ -160,6 +161,26 @@ const css = `
   .source-badge{padding:2px 7px;border-radius:4px;font-size:var(--fs-meta);font-weight:500;letter-spacing:.03em;}
   .lead-timer{font-size:var(--fs-meta);margin-top:6px;}
   .timer-hot{color:var(--danger);}.timer-warn{color:var(--warning);}.timer-ok{color:var(--accent);}
+  .pipeline-mobile{display:none;}
+  @media(max-width:640px){
+    .pipeline-scroll{display:none;}
+    .pipeline-mobile{display:flex;flex-direction:column;height:calc(100vh - 260px);}
+    .pipeline-mob-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+    .pipeline-mob-btn{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text-primary);flex-shrink:0;}
+    .pipeline-mob-btn:disabled{opacity:.25;cursor:default;}
+    .pipeline-mob-center{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;}
+    .pipeline-mob-title{font-size:var(--fs-body);font-weight:500;color:var(--text-primary);display:flex;align-items:center;gap:6px;}
+    .pipeline-mob-pos{font-size:var(--fs-meta);color:var(--text-muted);}
+    .pipeline-mob-dots{display:flex;gap:4px;}
+    .pipeline-mob-dot{width:5px;height:5px;border-radius:50%;background:var(--border-light);transition:background .15s;}
+    .pipeline-mob-dot.active{background:var(--accent);}
+    .pipeline-mob-cards{flex:1;overflow-y:auto;padding-bottom:8px;}
+    .pipeline-mob-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;}
+    .pipeline-mob-card:hover{border-color:var(--accent-dim);}
+    .pipeline-mob-row{display:flex;align-items:center;gap:6px;}
+    .pipeline-mob-urgency{width:7px;height:7px;border-radius:50%;background:var(--danger);flex-shrink:0;}
+    .pipeline-mob-empty{text-align:center;color:var(--text-muted);font-size:var(--fs-meta);padding:32px 0;opacity:.6;}
+  }
   .tasks-list{display:flex;flex-direction:column;gap:8px;}
   .task-item{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s;display:flex;gap:14px;align-items:flex-start;}
   .task-item:hover{border-color:var(--border-light);}
@@ -1971,8 +1992,8 @@ function RegistrarInversionModal({onClose,onSaved}){
 function AdminPipeline({leads,onOpen,setView}){
   const ps=STAGES.filter(s=>!["repechaje","perdido"].includes(s.id));
   const [filterStage,setFilterStage]=useState(null);
+  const [stageIdx,setStageIdx]=useState(0);
   const displayLeads=filterStage?leads.filter(l=>l.stage===filterStage):leads;
-  const ds=STAGES.find(s=>s.id===filterStage);
 
   if(filterStage){
     return(
@@ -2000,6 +2021,9 @@ function AdminPipeline({leads,onOpen,setView}){
     );
   }
 
+  const curStage=ps[stageIdx];
+  const curLeads=leads.filter(l=>l.stage===curStage?.id);
+
   return(
     <>
       <div style={{marginBottom:16}}>
@@ -2013,12 +2037,18 @@ function AdminPipeline({leads,onOpen,setView}){
           <div style={{marginLeft:"auto",fontSize:"var(--fs-meta)",color:AV.muted}}>Fuera del pipeline activo</div>
         </div>
       </div>
+
+      {/* Desktop: horizontal scroll board */}
       <div className="pipeline-scroll" style={{height:"calc(100vh - 280px)"}}>
         {ps.map(stage=>{
           const sl=leads.filter(l=>l.stage===stage.id);
           return(
-            <div key={stage.id} className="pipeline-col">
-              <div className="pipeline-col-header"><div className="col-dot" style={{background:stage.dot}}/><div className="col-name">{stage.label}</div><div className="col-count">{sl.length}</div></div>
+            <div key={stage.id} className={`pipeline-col${sl.length===0?" pipeline-col-empty":""}`}>
+              <div className="pipeline-col-header">
+                <div className="col-dot" style={{background:stage.dot}}/>
+                <div className="col-name">{stage.label}</div>
+                <div className="col-count">{sl.length}</div>
+              </div>
               {sl.map(l=>(
                 <div key={l.id} className="lead-card" onClick={()=>onOpen(l)}>
                   <LeadLink lead={l} onOpen={onOpen}/>
@@ -2030,6 +2060,50 @@ function AdminPipeline({leads,onOpen,setView}){
             </div>
           );
         })}
+      </div>
+
+      {/* Mobile: single-stage navigator */}
+      <div className="pipeline-mobile">
+        <div className="pipeline-mob-nav">
+          <button className="pipeline-mob-btn" onClick={()=>setStageIdx(i=>i-1)} disabled={stageIdx===0}>←</button>
+          <div className="pipeline-mob-center">
+            <div className="pipeline-mob-title">
+              <div className="col-dot" style={{background:curStage?.dot}}/>
+              {curStage?.label}
+              <span style={{fontSize:"var(--fs-meta)",color:AV.muted,fontWeight:400}}>({curLeads.length})</span>
+            </div>
+            <div className="pipeline-mob-pos">{stageIdx+1} / {ps.length}</div>
+            <div className="pipeline-mob-dots">
+              {ps.map((_,i)=>(
+                <div key={i} className={`pipeline-mob-dot${i===stageIdx?" active":""}`} onClick={()=>setStageIdx(i)} style={{cursor:"pointer"}}/>
+              ))}
+            </div>
+          </div>
+          <button className="pipeline-mob-btn" onClick={()=>setStageIdx(i=>i+1)} disabled={stageIdx===ps.length-1}>→</button>
+        </div>
+        <div className="pipeline-mob-cards">
+          {curLeads.length===0
+            ? <div className="pipeline-mob-empty">Sin leads en este stage</div>
+            : curLeads.map(l=>{
+                const urgent=timerClass(curStage.id==="nuevo"?l.created:l.lastActivity)==="timer-hot";
+                return(
+                  <div key={l.id} className="pipeline-mob-card" onClick={()=>onOpen(l)}>
+                    <div className="pipeline-mob-row">
+                      <LeadLink lead={l} onOpen={onOpen}/>
+                      {urgent&&<div className="pipeline-mob-urgency" title="Sin actividad reciente"/>}
+                    </div>
+                    <div className="lead-meta" style={{marginTop:3}}>
+                      <SrcBadge source={l.source}/>
+                      {l.asesor&&<span style={{color:AV.muted}}>{l.asesor}</span>}
+                    </div>
+                    <div className={`lead-timer ${timerClass(curStage.id==="nuevo"?l.created:l.lastActivity)}`} style={{marginTop:4}}>
+                      {curStage.id==="nuevo"?`Hace ${timeAgo(l.created)}`:`Últ. ${timeAgo(l.lastActivity)}`}
+                    </div>
+                  </div>
+                );
+              })
+          }
+        </div>
       </div>
     </>
   );
