@@ -162,13 +162,16 @@ const css = `
   .pipeline-wrap{display:none;}
   .pipeline-tabs-layout{display:none;}
   .pipeline-mobile{display:none;}
+  .pipeline-kanban-nav-btn{display:none;}
   @media(min-width:1401px){
     .pipeline-kanban-hdr{display:block;position:sticky;top:0;z-index:10;background:var(--bg-base);padding-bottom:4px;margin-bottom:0;}
     .pipeline-kanban-hdr-inner{display:flex;gap:12px;overflow:hidden;}
     .pipeline-kanban-hdr-col{min-width:200px;width:200px;max-width:220px;flex-shrink:0;background:var(--bg-surface);border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 10px;}
     .pipeline-kanban-hdr-col.pipeline-col-empty{opacity:.45;border-style:dashed;border-bottom:none;}
     .pipeline-wrap{display:block;position:relative;}
-    .pipeline-wrap::after{content:'';position:absolute;top:0;right:0;bottom:16px;width:48px;background:linear-gradient(to right,transparent,var(--bg-base));pointer-events:none;z-index:2;transition:opacity .2s;}
+    .pipeline-wrap::before{content:'';position:absolute;top:0;left:0;bottom:16px;width:60px;background:linear-gradient(to right,var(--bg-base),transparent);pointer-events:none;z-index:3;transition:opacity .2s;opacity:0;}
+    .pipeline-wrap:not(.at-start)::before{opacity:1;}
+    .pipeline-wrap::after{content:'';position:absolute;top:0;right:0;bottom:16px;width:60px;background:linear-gradient(to left,var(--bg-base),transparent);pointer-events:none;z-index:3;transition:opacity .2s;}
     .pipeline-wrap.at-end::after{opacity:0;}
     .pipeline-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;scrollbar-width:thin;scrollbar-color:var(--border) var(--bg-surface);}
     .pipeline-scroll::-webkit-scrollbar{height:6px;}
@@ -176,6 +179,10 @@ const css = `
     .pipeline-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
     .pipeline-scroll::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
     .pipeline-col{border-radius:0 0 10px 10px;}
+    .pipeline-kanban-nav-btn{display:flex;align-items:center;justify-content:center;position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:40px;height:40px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary);cursor:pointer;font-size:18px;line-height:1;box-shadow:0 2px 10px rgba(0,0,0,.45);transition:background .15s,border-color .15s;padding:0;}
+    .pipeline-kanban-nav-btn:hover{background:var(--bg-hover,var(--bg-surface));border-color:var(--accent-dim);}
+    .pipeline-kanban-nav-btn.nav-left{left:8px;}
+    .pipeline-kanban-nav-btn.nav-right{right:8px;}
   }
   @media(min-width:768px) and (max-width:1400px){
     .pipeline-tabs-layout{display:flex;flex-direction:column;}
@@ -2020,15 +2027,19 @@ function AdminPipeline({leads,onOpen,setView}){
   const [filterStage,setFilterStage]=useState(null);
   const [stageIdx,setStageIdx]=useState(0);
   const [atEnd,setAtEnd]=useState(false);
+  const [atStart,setAtStart]=useState(true);
   const scrollRef=useRef(null);
   const headerRef=useRef(null);
   const displayLeads=filterStage?leads.filter(l=>l.stage===filterStage):leads;
 
-  // Gradient fade tracker
+  // Gradient + nav-button visibility tracker
   useLayoutEffect(()=>{
     const el=scrollRef.current;
     if(!el)return;
-    const check=()=>setAtEnd(el.scrollLeft+el.clientWidth>=el.scrollWidth-10);
+    const check=()=>{
+      setAtEnd(el.scrollLeft+el.clientWidth>=el.scrollWidth-10);
+      setAtStart(el.scrollLeft<=10);
+    };
     check();
     el.addEventListener('scroll',check,{passive:true});
     return()=>el.removeEventListener('scroll',check);
@@ -2113,7 +2124,9 @@ function AdminPipeline({leads,onOpen,setView}){
           })}
         </div>
       </div>
-      <div className={`pipeline-wrap${atEnd?" at-end":""}`}>
+      <div className={`pipeline-wrap${atEnd?" at-end":""}${atStart?" at-start":""}`}>
+        {!atStart&&<button className="pipeline-kanban-nav-btn nav-left" onClick={()=>scrollRef.current?.scrollBy({left:-636,behavior:'smooth'})}>←</button>}
+        {!atEnd&&<button className="pipeline-kanban-nav-btn nav-right" onClick={()=>scrollRef.current?.scrollBy({left:636,behavior:'smooth'})}>→</button>}
         <div className="pipeline-scroll" ref={scrollRef}>
           {ps.map(stage=>{
             const sl=leads.filter(l=>l.stage===stage.id);
