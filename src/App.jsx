@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
-import { fetchProfileByAuthUserId, fetchAsesores, fetchLeads, fetchUnits, insertLead, insertLeadAsBroker, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, blockUnitAsBroker, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification, notifyAdmins, updateUltimoLeadAsignado } from "./lib/data";
+import { fetchProfileByAuthUserId, fetchAsesores, fetchAllTeamProfiles, fetchLeads, fetchUnits, insertLead, insertLeadAsBroker, insertAsesor, updateAsesor, setAsesorActivo, swapTurnos, updateOwnProfile, fetchTowers, fetchMarketingSpend, upsertMarketingSpend, fetchProjectConfig, upsertProjectConfig, fetchGoals, insertGoal, updateGoal, deleteGoal, setAsesorCanBlockUnits, updateUnit, insertUnit, deleteUnit, updateTower, insertTower, blockUnit, blockUnitAsBroker, unblockUnit, reassignLeadAsesor, updateLeadStage, fetchNotifications, markNotificationRead, insertNotification, notifyAdmins, updateUltimoLeadAsignado, fetchRolePermissions, upsertRolePermissions, fetchConversations, fetchMessages, sendMessage, fetchOrCreateConversation, markMessagesRead } from "./lib/data";
 
 const AV = {
   obsidian:   "var(--bg-base)",
@@ -381,7 +381,48 @@ const css = `
     .tower-chips{flex-wrap:wrap;}
     .semaforo-metrics{gap:12px;}
   }
+  /* Chat */
+  .chat-layout{display:flex;height:calc(100vh - 120px);overflow:hidden;border-radius:10px;border:1px solid var(--border);}
+  .chat-sidebar{width:280px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;background:var(--bg-surface);}
+  .chat-sidebar-hdr{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:var(--fs-meta);font-weight:600;color:var(--text-primary);}
+  .chat-convs{flex:1;overflow-y:auto;}
+  .chat-conv-item{display:flex;gap:10px;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;}
+  .chat-conv-item:hover{background:var(--bg-card);}
+  .chat-conv-item.active{background:var(--accent-glow);}
+  .chat-conv-avatar{width:38px;height:38px;border-radius:50%;background:var(--bg-deep);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--text-dim);flex-shrink:0;}
+  .chat-conv-name{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .chat-conv-role{font-size:11px;color:var(--text-muted);margin-top:1px;}
+  .chat-conv-time{font-size:11px;color:var(--text-muted);flex-shrink:0;}
+  .chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg-base);}
+  .chat-thread-hdr{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg-surface);}
+  .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;}
+  .chat-msg{display:flex;flex-direction:column;max-width:72%;}
+  .chat-msg.mine{align-self:flex-end;align-items:flex-end;}
+  .chat-msg.theirs{align-self:flex-start;align-items:flex-start;}
+  .chat-bubble{padding:8px 13px;border-radius:14px;font-size:var(--fs-meta);line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+  .chat-msg.mine .chat-bubble{background:var(--accent-glow);border:1px solid var(--accent-dim);border-bottom-right-radius:4px;}
+  .chat-msg.theirs .chat-bubble{background:var(--bg-card);border:1px solid var(--border);border-bottom-left-radius:4px;}
+  .chat-msg-time{font-size:10px;color:var(--text-muted);margin-top:3px;}
+  .chat-input-wrap{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end;background:var(--bg-surface);}
+  .chat-textarea{flex:1;padding:9px 13px;border-radius:20px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text-primary);font-size:var(--fs-meta);font-family:var(--font-body);resize:none;outline:none;max-height:120px;transition:border-color .15s;}
+  .chat-textarea:focus{border-color:var(--accent-dim);}
+  .chat-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:var(--fs-meta);flex-direction:column;gap:8px;}
+  .role-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;}
+  @media(max-width:640px){
+    .chat-layout{height:calc(100vh - 180px);}
+    .chat-sidebar{width:100%;}
+    .chat-sidebar.mob-hidden{display:none;}
+    .chat-main.mob-hidden{display:none;}
+  }
 `;
+
+const ROLE_LABELS={admin:"Administrador",vendedor:"Inhouse",vendedor_mb:"Vendedor MB",broker_externo:"Broker Externo"};
+const ROLE_COLORS={
+  admin:{color:"var(--accent)",bg:"var(--accent-glow)"},
+  vendedor:{color:"#4ade80",bg:"rgba(74,222,128,.12)"},
+  vendedor_mb:{color:"#fbbf24",bg:"rgba(251,191,36,.12)"},
+  broker_externo:{color:"#a78bfa",bg:"rgba(167,139,250,.12)"},
+};
 
 // DATA
 const SOURCES = {
@@ -799,12 +840,13 @@ function NewLeadModal({onClose,onSave,asesores,leads=[]}){
 }
 
 // ── ASESOR FORM ───────────────────────────────────────────────────────────────
-function AsesorModal({asesor,onClose,onSave}){
+function AsesorModal({asesor,defaultRole="vendedor",onClose,onSave}){
   const isEdit=!!asesor;
   const [f,setF]=useState({
     name:(asesor&&asesor.name)||"",
     email:(asesor&&asesor.email)||"",
     phone:(asesor&&asesor.phone)||"",
+    role:asesor?.role||defaultRole,
     metas:asesor?.metas||{
       toursRealizados:{target:8,actual:0,periodo:"mes"},
       leadsDocumentacion:{target:12,actual:0,periodo:"mes"},
@@ -816,14 +858,37 @@ function AsesorModal({asesor,onClose,onSave}){
   const updateMeta=(key,field,value)=>{
     setF(p=>({...p,metas:{...p.metas,[key]:{...p.metas[key],[field]:parseInt(value)||0}}}));
   };
+  const isBrokerExterno=f.role==="broker_externo";
+  const roleOpts=[{v:"vendedor",l:"Inhouse"},{v:"vendedor_mb",l:"Vendedor MB"},{v:"broker_externo",l:"Broker Externo"}];
   return(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal modal-lg slide-in" onClick={e=>e.stopPropagation()}>
-        <div className="modal-title">{isEdit?"Editar Asesor":"Agregar Asesor"}</div>
-        <div className="modal-sub">{isEdit?`Editando: ${asesor.name}`:"El asesor entrará al final del turno. Establece sus metas aquí."}</div>
+        <div className="modal-title">{isEdit?"Editar miembro":"Agregar miembro"}</div>
+        <div className="modal-sub">{isEdit?`Editando: ${asesor.name}`:"Completa los datos del nuevo miembro del equipo."}</div>
 
         <div style={{background:AV.surface,borderRadius:10,padding:14,marginBottom:16}}>
           <div style={{fontSize:"var(--fs-meta)",fontWeight:500,color:AV.text,marginBottom:12}}>Información Básica</div>
+          {!isEdit&&(
+            <div className="form-group" style={{marginBottom:12}}>
+              <label className="form-label">Tipo de usuario *</label>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {roleOpts.map(r=>(
+                  <button key={r.v} onClick={()=>setF(p=>({...p,role:r.v}))}
+                    style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${f.role===r.v?"var(--accent)":AV.border}`,
+                      background:f.role===r.v?"var(--accent-glow)":"transparent",
+                      color:f.role===r.v?"var(--accent)":AV.textDim,fontSize:"var(--fs-meta)",cursor:"pointer",transition:"all .15s"}}>
+                    {r.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {isEdit&&(
+            <div style={{marginBottom:10,display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:"var(--fs-meta)",color:AV.muted}}>Tipo:</span>
+              <span className="role-chip" style={{background:ROLE_COLORS[f.role]?.bg,color:ROLE_COLORS[f.role]?.color}}>{ROLE_LABELS[f.role]}</span>
+            </div>
+          )}
           <div className="form-group"><label className="form-label">Nombre *</label><input className="form-input" value={f.name} onChange={e=>setF(p=>({...p,name:e.target.value}))}/></div>
           <div className="form-row">
             <div className="form-group"><label className="form-label">Email</label><input className="form-input" value={f.email} onChange={e=>setF(p=>({...p,email:e.target.value}))}/></div>
@@ -831,37 +896,39 @@ function AsesorModal({asesor,onClose,onSave}){
           </div>
         </div>
 
-        <div style={{background:AV.surface,borderRadius:10,padding:14,marginBottom:16}}>
-          <div style={{fontSize:"var(--fs-meta)",fontWeight:500,color:AV.text,marginBottom:12}}>⭐ Metas Mensuales</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <div className="form-group">
-              <label className="form-label">Tours Realizados (Meta)</label>
-              <input className="form-input" type="number" value={f.metas.toursRealizados.target} onChange={e=>updateMeta("toursRealizados","target",e.target.value)}/>
+        {!isBrokerExterno&&(
+          <div style={{background:AV.surface,borderRadius:10,padding:14,marginBottom:16}}>
+            <div style={{fontSize:"var(--fs-meta)",fontWeight:500,color:AV.text,marginBottom:12}}>⭐ Metas Mensuales</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div className="form-group">
+                <label className="form-label">Tours Realizados (Meta)</label>
+                <input className="form-input" type="number" value={f.metas.toursRealizados.target} onChange={e=>updateMeta("toursRealizados","target",e.target.value)}/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Leads en Documentación (Meta)</label>
+                <input className="form-input" type="number" value={f.metas.leadsDocumentacion.target} onChange={e=>updateMeta("leadsDocumentacion","target",e.target.value)}/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Ventas Cerradas (Meta)</label>
+                <input className="form-input" type="number" value={f.metas.ventasCerradas.target} onChange={e=>updateMeta("ventasCerradas","target",e.target.value)}/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Ventas Escrituradas (Meta)</label>
+                <input className="form-input" type="number" value={f.metas.ventasEscritura.target} onChange={e=>updateMeta("ventasEscritura","target",e.target.value)}/>
+              </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Leads en Documentación (Meta)</label>
-              <input className="form-input" type="number" value={f.metas.leadsDocumentacion.target} onChange={e=>updateMeta("leadsDocumentacion","target",e.target.value)}/>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Ventas Cerradas (Meta)</label>
-              <input className="form-input" type="number" value={f.metas.ventasCerradas.target} onChange={e=>updateMeta("ventasCerradas","target",e.target.value)}/>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Ventas Escrituradas (Meta)</label>
-              <input className="form-input" type="number" value={f.metas.ventasEscritura.target} onChange={e=>updateMeta("ventasEscritura","target",e.target.value)}/>
-            </div>
+            <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:10}}>💡 Personaliza las metas según experiencia.</div>
           </div>
-          <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:10}}>💡 Personaliza las metas según experiencia. Nuevos: 2-4 tours. Veteranos: 8+ tours.</div>
-        </div>
+        )}
 
-        {isEdit&&(
+        {isEdit&&!isBrokerExterno&&(
           <div style={{background:AV.surface,borderRadius:10,padding:14,marginBottom:16}}>
             <div style={{fontSize:"var(--fs-meta)",fontWeight:500,color:AV.text,marginBottom:8}}>🔒 Permisos de Inventario</div>
             <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:"var(--fs-meta)",color:AV.text}}>
               <input type="checkbox" checked={f.canBlockUnits} onChange={e=>setF(p=>({...p,canBlockUnits:e.target.checked}))}/>
               Puede bloquear propiedades temporalmente desde Inventario
             </label>
-            <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:6}}>El admin sigue controlando, unidad por unidad, cuáles pueden bloquearse por vendedores, y puede desbloquear cualquier unidad cuando lo necesite.</div>
+            <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:6}}>El admin sigue controlando cuáles unidades están habilitadas para bloqueo.</div>
           </div>
         )}
 
@@ -2172,114 +2239,412 @@ function AdminLeads({leads,onOpen}){
 }
 
 // ── EQUIPO ────────────────────────────────────────────────────────────────────
-function AdminEquipo({leads,asesores,refreshData,onOpen}){
+function MemberCard({a,leads,onEdit,onDel,onPerfil,showTurno}){
+  const aLeads=leads.filter(l=>l.asesor===a.name&&!["perdido","repechaje"].includes(l.stage));
+  const rc=ROLE_COLORS[a.role]||{color:AV.muted,bg:"transparent"};
+  return(
+    <div className="asesor-card" style={{cursor:"pointer",transition:"all .2s"}} onClick={()=>onPerfil&&onPerfil(a)}
+      onMouseEnter={e=>e.currentTarget.style.borderColor=AV.teal} onMouseLeave={e=>e.currentTarget.style.borderColor=AV.border}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+        <div className="user-avatar">{ini(a.name)}</div>
+        <div style={{flex:1}}>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <div style={{fontSize:"var(--fs-meta)",fontWeight:500,color:AV.text}}>{a.name}</div>
+            <span className="role-chip" style={{background:rc.bg,color:rc.color}}>{ROLE_LABELS[a.role]}</span>
+          </div>
+          <div style={{fontSize:"var(--fs-meta)",color:AV.muted}}>{a.email}</div>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <button className="btn btn-sm" onClick={e=>{e.stopPropagation();onEdit(a);}}>Editar</button>
+          <button className="btn btn-sm btn-danger" onClick={e=>{e.stopPropagation();onDel(a);}}>Dar de baja</button>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:16,fontSize:"var(--fs-meta)",flexWrap:"wrap"}}>
+        <span><span style={{color:AV.muted}}>Leads: </span><span style={{fontWeight:500}}>{aLeads.length}</span></span>
+        {showTurno&&<span><span style={{color:AV.muted}}>Turno: </span><span style={{color:AV.teal}}>#{a.turno}</span></span>}
+        {a.tiempo_resp!=null&&<span><span style={{color:AV.muted}}>T. resp: </span><span style={{color:parseInt(a.tiempo_resp)<15?AV.teal:AV.amber}}>{a.tiempo_resp}</span></span>}
+        {a.conversion!=null&&<span><span style={{color:AV.muted}}>Conv: </span><span style={{color:parseFloat(a.conversion)>15?AV.teal:AV.amber}}>{a.conversion}%</span></span>}
+      </div>
+    </div>
+  );
+}
+
+function AdminEquipo({leads,asesores,refreshData,onOpen,rolePermissions}){
+  const [tab,setTab]=useState("inhouse");
   const [showAdd,setShowAdd]=useState(false);
   const [editA,setEditA]=useState(null);
   const [delA,setDelA]=useState(null);
   const [fichaInModal,setFichaInModal]=useState(null);
   const [perfilAsesor,setPerfilAsesor]=useState(null);
-  const active=asesores.filter(a=>a.activo).sort((a,b)=>a.turno-b.turno);
-  const inactive=asesores.filter(a=>!a.activo);
+  const [teamProfiles,setTeamProfiles]=useState([]);
+  const [permsEditing,setPermsEditing]=useState(null);
+  const [permsSaving,setPermsSaving]=useState(null);
 
-  async function addAsesor(f){
-    const maxT=asesores.filter(a=>a.activo).reduce((m,a)=>Math.max(m,a.turno),0);
-    await insertAsesor({name:f.name,email:f.email,phone:f.phone,turno:maxT+1});
+  useEffect(()=>{fetchAllTeamProfiles().then(setTeamProfiles).catch(()=>{});},[]);
+
+  const inhouse=asesores.filter(a=>a.role!=="vendedor_mb");
+  const vendedoresMB=asesores.filter(a=>a.role==="vendedor_mb");
+  const brokersExternos=teamProfiles.filter(p=>p.role==="broker_externo");
+  const activeInhouse=inhouse.filter(a=>a.activo).sort((a,b)=>a.turno-b.turno);
+  const activeMB=vendedoresMB.filter(a=>a.activo).sort((a,b)=>a.turno-b.turno);
+
+  async function handleAdd(f){
+    const maxT=asesores.filter(a=>a.activo&&a.role!=="broker_externo").reduce((m,a)=>Math.max(m,a.turno||0),0);
+    await insertAsesor({name:f.name,email:f.email,phone:f.phone,turno:maxT+1,role:f.role});
     await refreshData();
+    const fresh=await fetchAllTeamProfiles();setTeamProfiles(fresh);
   }
-  async function editAsesor(f){await updateAsesor(editA.id,{name:f.name,email:f.email,phone:f.phone});await setAsesorCanBlockUnits(editA.id,f.canBlockUnits);await refreshData();}
-  async function delAsesor(a){await setAsesorActivo(a.id,false);await refreshData();}
-  async function moveTurno(idx,dir){
-    const newIdx=idx+dir;if(newIdx<0||newIdx>=active.length)return;
-    const a=active[idx],b=active[newIdx];
-    await swapTurnos(a.id,a.turno,b.id,b.turno);
+  async function handleEdit(f){
+    await updateAsesor(editA.id,{name:f.name,email:f.email,phone:f.phone,role:f.role});
+    await setAsesorCanBlockUnits(editA.id,f.canBlockUnits);
     await refreshData();
+    const fresh=await fetchAllTeamProfiles();setTeamProfiles(fresh);
   }
+  async function handleDel(a){await setAsesorActivo(a.id,false);await refreshData();const fresh=await fetchAllTeamProfiles();setTeamProfiles(fresh);}
+  async function moveTurno(list,idx,dir){
+    const ni=idx+dir;if(ni<0||ni>=list.length)return;
+    const a=list[idx],b=list[ni];
+    await swapTurnos(a.id,a.turno,b.id,b.turno);await refreshData();
+  }
+
+  // Permissions state for editing
+  const [permsLocal,setPermsLocal]=useState({});
+  useEffect(()=>{setPermsLocal(rolePermissions||{});},[rolePermissions]);
+  const permFields=[
+    {key:"ver_todos_leads",label:"Ver todos los leads",desc:"Puede ver leads de todo el equipo"},
+    {key:"ver_inventario",label:"Ver inventario",desc:"Puede ver el estado de las unidades"},
+    {key:"bloquear_unidades",label:"Bloquear unidades",desc:"Puede reservar unidades temporalmente"},
+    {key:"datos_parciales",label:"Datos parciales en leads",desc:"Puede registrar leads sin contacto completo"},
+    {key:"ver_dashboard",label:"Ver dashboard",desc:"Accede al resumen general"},
+  ];
+  const permGroups=[
+    {id:"vendedor",label:"Inhouse"},
+    {id:"vendedor_mb",label:"Vendedores MB"},
+    {id:"broker_externo",label:"Brokers Externos"},
+  ];
+  async function savePerms(roleId){
+    setPermsSaving(roleId);
+    try{await upsertRolePermissions(roleId,{
+      ver_todos_leads:!!permsLocal[roleId]?.ver_todos_leads,
+      ver_inventario:!!permsLocal[roleId]?.ver_inventario,
+      bloquear_unidades:!!permsLocal[roleId]?.bloquear_unidades,
+      datos_parciales:!!permsLocal[roleId]?.datos_parciales,
+      ver_dashboard:!!permsLocal[roleId]?.ver_dashboard,
+    });}finally{setPermsSaving(null);}
+  }
+  function togglePerm(roleId,key){setPermsLocal(prev=>({...prev,[roleId]:{...prev[roleId],[key]:!prev[roleId]?.[key]}}) );}
+
+  const TABS=[{id:"inhouse",label:"Inhouse",count:activeInhouse.length},{id:"mb",label:"Vendedores MB",count:activeMB.length},{id:"brokers",label:"Brokers Externos",count:brokersExternos.length},{id:"permisos",label:"Permisos",count:null}];
 
   return(
     <>
-      <div className="two-col">
-        <div className="panel">
-          <div className="panel-header"><span>🔄</span><div className="panel-title">Turno de asignación</div></div>
-          <div className="panel-body">
-            <div style={{fontSize:"var(--fs-meta)",color:AV.textDim,marginBottom:12}}>Leads digitales y web se asignan en este orden.</div>
-            {active.map((a,i)=>(
-              <div key={a.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:`1px solid ${AV.border}`}}>
-                <div style={{width:24,height:24,borderRadius:"50%",background:AV.tealGlow,border:`1px solid ${AV.tealDim}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"var(--fs-meta)",color:AV.teal,fontWeight:700}}>{i+1}</div>
-                <div className="user-avatar" style={{fontSize:"var(--fs-meta)"}}>{ini(a.name)}</div>
-                <div style={{flex:1,fontSize:"var(--fs-meta)",color:AV.text}}>{a.name}</div>
-                <div style={{display:"flex",gap:4}}>
-                  <button className="btn btn-sm" disabled={i===0} onClick={()=>moveTurno(i,-1)}>↑</button>
-                  <button className="btn btn-sm" disabled={i===active.length-1} onClick={()=>moveTurno(i,1)}>↓</button>
-                </div>
-              </div>
-            ))}
-            <div style={{marginTop:12,padding:"10px 12px",background:AV.surface,borderRadius:8,fontSize:"var(--fs-meta)",color:AV.muted}}>📌 Brokers externos NO entran en este turno.</div>
-          </div>
-        </div>
+      {/* Tab navigation */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)}
+            style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${tab===t.id?"var(--accent)":AV.border}`,
+              background:tab===t.id?"var(--accent-glow)":"transparent",
+              color:tab===t.id?"var(--accent)":AV.textDim,fontSize:"var(--fs-meta)",cursor:"pointer",transition:"all .15s",
+              display:"flex",alignItems:"center",gap:6}}>
+            {t.label}
+            {t.count!=null&&<span style={{fontSize:11,fontWeight:600,background:AV.deep,padding:"1px 6px",borderRadius:8}}>{t.count}</span>}
+          </button>
+        ))}
+      </div>
 
-        <div className="panel">
-          <div className="panel-header"><span>👤</span><div className="panel-title">Asesores inhouse</div><button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(true)}>+ Agregar</button></div>
-          <div className="panel-body" style={{display:"flex",flexDirection:"column",gap:10}}>
-            {active.map(a=>{
-              const aLeads=leads.filter(l=>l.asesor===a.name&&!["perdido","repechaje"].includes(l.stage));
-              return(
-                <div key={a.id} className="asesor-card" style={{cursor:"pointer",transition:"all .2s"}} onClick={()=>setPerfilAsesor(a)} onMouseEnter={e=>e.currentTarget.style.borderColor=AV.teal} onMouseLeave={e=>e.currentTarget.style.borderColor=AV.border}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-                    <div className="user-avatar">{ini(a.name)}</div>
-                    <div style={{flex:1}}><div style={{fontSize:"var(--fs-meta)",fontWeight:500,color:AV.text}}>{a.name}</div><div style={{fontSize:"var(--fs-meta)",color:AV.muted}}>{a.email}</div></div>
-                    <div style={{display:"flex",gap:6}}>
-                      <button className="btn btn-sm" onClick={e=>{e.stopPropagation();setEditA(a);}}>Editar</button>
-                      <button className="btn btn-sm btn-danger" onClick={e=>{e.stopPropagation();setDelA(a);}}>Eliminar</button>
-                    </div>
-                  </div>
-                  <div style={{display:"flex",gap:16,fontSize:"var(--fs-meta)",flexWrap:"wrap"}}>
-                    <span><span style={{color:AV.muted}}>Leads: </span><span style={{fontWeight:500}}>{aLeads.length}</span></span>
-                    <span><span style={{color:AV.muted}}>T. resp: </span><span style={{color:parseInt(a.tiempo_resp)<15?AV.teal:AV.amber}}>{a.tiempo_resp}</span></span>
-                    <span><span style={{color:AV.muted}}>Conv: </span><span style={{color:parseFloat(a.conversion)>15?AV.teal:AV.amber}}>{a.conversion}</span></span>
-                    <span><span style={{color:AV.muted}}>Turno: </span><span style={{color:AV.teal}}>#{a.turno}</span></span>
+      {/* INHOUSE */}
+      {tab==="inhouse"&&(
+        <div className="two-col">
+          <div className="panel">
+            <div className="panel-header"><span>🔄</span><div className="panel-title">Turno de asignación</div></div>
+            <div className="panel-body">
+              <div style={{fontSize:"var(--fs-meta)",color:AV.textDim,marginBottom:12}}>Leads digitales y web se asignan en este orden. Brokers externos y Vendedores MB NO entran en este turno.</div>
+              {activeInhouse.map((a,i)=>(
+                <div key={a.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:`1px solid ${AV.border}`}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:AV.tealGlow,border:`1px solid ${AV.tealDim}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"var(--fs-meta)",color:AV.teal,fontWeight:700}}>{i+1}</div>
+                  <div className="user-avatar" style={{fontSize:"var(--fs-meta)"}}>{ini(a.name)}</div>
+                  <div style={{flex:1,fontSize:"var(--fs-meta)",color:AV.text}}>{a.name}</div>
+                  <div style={{display:"flex",gap:4}}>
+                    <button className="btn btn-sm" disabled={i===0} onClick={()=>moveTurno(activeInhouse,i,-1)}>↑</button>
+                    <button className="btn btn-sm" disabled={i===activeInhouse.length-1} onClick={()=>moveTurno(activeInhouse,i,1)}>↓</button>
                   </div>
                 </div>
-              );
-            })}
-            {inactive.length>0&&(<>
-              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,textTransform:"uppercase",letterSpacing:".1em",marginTop:8}}>Inactivos</div>
-              {inactive.map(a=>(
+              ))}
+            </div>
+          </div>
+          <div className="panel">
+            <div className="panel-header"><span>👤</span><div className="panel-title">Inhouse</div><button className="btn btn-primary btn-sm" onClick={()=>{setShowAdd(true);}}>+ Agregar</button></div>
+            <div className="panel-body" style={{display:"flex",flexDirection:"column",gap:10}}>
+              {activeInhouse.map(a=><MemberCard key={a.id} a={a} leads={leads} onEdit={setEditA} onDel={setDelA} onPerfil={setPerfilAsesor} showTurno/>)}
+              {inhouse.filter(a=>!a.activo).map(a=>(
                 <div key={a.id} className="asesor-card inactive">
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
                     <div className="user-avatar" style={{opacity:.5}}>{ini(a.name)}</div>
-                    <div style={{flex:1}}><div style={{fontSize:"var(--fs-meta)",color:AV.textDim}}>{a.name}</div><div style={{fontSize:"var(--fs-meta)",color:AV.muted}}>Inactivo · historial conservado</div></div>
+                    <div style={{flex:1}}><div style={{fontSize:"var(--fs-meta)",color:AV.textDim}}>{a.name}</div><div style={{fontSize:"var(--fs-meta)",color:AV.muted}}>Inactivo</div></div>
                     <span className="chip chip-inactivo">Inactivo</span>
                   </div>
                 </div>
               ))}
-            </>)}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="panel">
-        <div className="panel-header"><span>🏢</span><div className="panel-title">Brokers externos</div><button className="btn btn-sm">+ Registrar broker</button></div>
-        <div className="panel-body" style={{padding:0}}>
-          <table>
-            <thead><tr><th>Broker / Agencia</th><th>Estado</th><th>Leads enviados</th><th>En seguimiento</th><th>Modo</th></tr></thead>
-            <tbody>
-              <tr>
-                <td><strong>InverCasas MTY</strong><br/><span style={{fontSize:"var(--fs-meta)",color:AV.muted}}>Monterrey, NL</span></td>
-                <td><span className="chip chip-calificado">Activo</span></td>
-                <td>1</td><td>Rodrigo Peña</td>
-                <td><span style={{fontSize:"var(--fs-meta)",color:AV.textDim}}>Solo envía leads</span></td>
-              </tr>
-            </tbody>
-          </table>
+      {/* VENDEDORES MB */}
+      {tab==="mb"&&(
+        <div className="panel">
+          <div className="panel-header"><span>🤝</span><div className="panel-title">Vendedores del Master Broker</div><button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(true)}>+ Agregar</button></div>
+          <div className="panel-body" style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{padding:"10px 12px",background:AV.surface,borderRadius:8,fontSize:"var(--fs-meta)",color:AV.textDim,marginBottom:4}}>
+              Los vendedores MB tienen los mismos permisos que Inhouse pero se distinguen como equipo externo del Master Broker. Pueden ingresar leads con datos parciales para proteger su cartera.
+            </div>
+            {activeMB.map(a=><MemberCard key={a.id} a={a} leads={leads} onEdit={setEditA} onDel={setDelA} onPerfil={setPerfilAsesor} showTurno={false}/>)}
+            {activeMB.length===0&&<div style={{textAlign:"center",color:AV.muted,padding:"32px 0",fontSize:"var(--fs-meta)"}}>No hay vendedores MB registrados.</div>}
+          </div>
         </div>
-      </div>
+      )}
 
-      {showAdd&&<AsesorModal onClose={()=>setShowAdd(false)} onSave={addAsesor}/>}
-      {editA&&<AsesorModal asesor={editA} onClose={()=>setEditA(null)} onSave={editAsesor}/>}
-      {delA&&<EliminarModal asesor={delA} leads={leads} asesores={asesores} onClose={()=>setDelA(null)} onConfirm={(a,cfg)=>delAsesor(a)} onViewLead={l=>{setDelA(null);setFichaInModal(l);}}/>}
+      {/* BROKERS EXTERNOS */}
+      {tab==="brokers"&&(
+        <div className="panel">
+          <div className="panel-header"><span>🏢</span><div className="panel-title">Brokers Externos</div><button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(true)}>+ Registrar</button></div>
+          <div className="panel-body" style={{padding:0}}>
+            <div style={{padding:"10px 16px 4px",fontSize:"var(--fs-meta)",color:AV.textDim}}>Brokers externos solo ven sus propios leads y registran datos parciales (últimos 4 dígitos del celular).</div>
+            {brokersExternos.length===0?(
+              <div style={{textAlign:"center",color:AV.muted,padding:"32px 0",fontSize:"var(--fs-meta)"}}>No hay brokers externos registrados.</div>
+            ):(
+              <table>
+                <thead><tr><th>Broker</th><th>Tipo</th><th>Leads enviados</th><th>Activo</th><th></th></tr></thead>
+                <tbody>
+                  {brokersExternos.map(b=>{
+                    const bLeads=leads.filter(l=>l._brokerId===b.id||l.broker===b.name);
+                    return(
+                      <tr key={b.id}>
+                        <td><div style={{fontWeight:500}}>{b.name}</div><div style={{fontSize:"var(--fs-meta)",color:AV.muted}}>{b.email}</div></td>
+                        <td><span className="role-chip" style={{background:ROLE_COLORS.broker_externo.bg,color:ROLE_COLORS.broker_externo.color}}>Broker Externo</span></td>
+                        <td>{bLeads.length}</td>
+                        <td>{b.activo?<span style={{color:AV.teal}}>●</span>:<span style={{color:AV.muted}}>●</span>}</td>
+                        <td><button className="btn btn-sm" onClick={()=>setEditA(b)}>Editar</button></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* PERMISOS */}
+      {tab==="permisos"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          {permGroups.map(g=>(
+            <div key={g.id} className="panel">
+              <div className="panel-header">
+                <div>
+                  <div className="panel-title">{g.label}</div>
+                  <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:2}}>Permisos para todos los usuarios de este grupo</div>
+                </div>
+                <button className="btn btn-primary btn-sm" disabled={permsSaving===g.id} onClick={()=>savePerms(g.id)}>
+                  {permsSaving===g.id?"Guardando…":"Guardar"}
+                </button>
+              </div>
+              <div className="panel-body" style={{display:"flex",flexDirection:"column",gap:0}}>
+                {permFields.map(pf=>(
+                  <div key={pf.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",borderBottom:`1px solid ${AV.border}`}}>
+                    <div>
+                      <div style={{fontSize:"var(--fs-meta)",fontWeight:500,color:AV.text}}>{pf.label}</div>
+                      <div style={{fontSize:11,color:AV.muted,marginTop:2}}>{pf.desc}</div>
+                    </div>
+                    <button onClick={()=>togglePerm(g.id,pf.key)}
+                      style={{width:44,height:26,borderRadius:13,border:`1px solid ${permsLocal[g.id]?.[pf.key]?"var(--accent)":AV.border}`,
+                        background:permsLocal[g.id]?.[pf.key]?"var(--accent-glow)":"var(--bg-deep)",
+                        cursor:"pointer",transition:"all .2s",position:"relative",flexShrink:0}}>
+                      <div style={{width:18,height:18,borderRadius:"50%",
+                        background:permsLocal[g.id]?.[pf.key]?"var(--accent)":AV.muted,
+                        position:"absolute",top:3,transition:"left .2s",
+                        left:permsLocal[g.id]?.[pf.key]?"23px":"3px"}}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAdd&&<AsesorModal defaultRole={tab==="mb"?"vendedor_mb":tab==="brokers"?"broker_externo":"vendedor"} onClose={()=>setShowAdd(false)} onSave={handleAdd}/>}
+      {editA&&<AsesorModal asesor={editA} onClose={()=>setEditA(null)} onSave={handleEdit}/>}
+      {delA&&<EliminarModal asesor={delA} leads={leads} asesores={asesores} onClose={()=>setDelA(null)} onConfirm={(a)=>handleDel(a)} onViewLead={l=>{setDelA(null);setFichaInModal(l);}}/>}
       {fichaInModal&&<FichaModal lead={fichaInModal} onClose={()=>setFichaInModal(null)} asesores={asesores} onReassign={async(id,aid,old,nw)=>{await reassignLeadAsesor(id,aid,old,nw,"Admin");await refreshData();}}/>}
       {perfilAsesor&&<AsesorPerfilModal asesor={perfilAsesor} leads={leads} onClose={()=>setPerfilAsesor(null)}/>}
     </>
+  );
+}
+
+// ── CHAT ─────────────────────────────────────────────────────────────────────
+function ChatPanel({currentUser,isAdmin}){
+  const [conversations,setConversations]=useState([]);
+  const [activeConvId,setActiveConvId]=useState(null);
+  const [messages,setMessages]=useState([]);
+  const [newMsg,setNewMsg]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [showConvList,setShowConvList]=useState(true);
+  const [allProfiles,setAllProfiles]=useState([]);
+  const [showNewConv,setShowNewConv]=useState(false);
+  const msgEndRef=useRef(null);
+
+  useEffect(()=>{
+    if(!currentUser)return;
+    if(isAdmin)fetchAllTeamProfiles().then(setAllProfiles).catch(()=>{});
+    fetchConversations(currentUser.id,isAdmin).then(setConversations).finally(()=>setLoading(false));
+  },[currentUser?.id]);
+
+  useEffect(()=>{
+    if(!activeConvId)return;
+    fetchMessages(activeConvId).then(setMessages);
+    markMessagesRead(activeConvId).catch(()=>{});
+    const channel=supabase
+      .channel(`chat-${activeConvId}`)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:`conversation_id=eq.${activeConvId}`},(payload)=>{
+        setMessages(prev=>[...prev,{...payload.new}]);
+        markMessagesRead(activeConvId).catch(()=>{});
+      })
+      .subscribe();
+    return()=>{supabase.removeChannel(channel);};
+  },[activeConvId]);
+
+  useEffect(()=>{msgEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
+
+  async function handleSend(){
+    if(!newMsg.trim()||!activeConvId)return;
+    const text=newMsg.trim();
+    setNewMsg("");
+    const msg=await sendMessage(activeConvId,currentUser.id,text);
+    setMessages(prev=>[...prev,msg]);
+    setConversations(prev=>prev.map(c=>c.id===activeConvId?{...c,last_message_at:new Date().toISOString()}:c));
+  }
+
+  async function startConv(otherId){
+    const conv=await fetchOrCreateConversation(currentUser.id,otherId);
+    const other=allProfiles.find(p=>p.id===otherId)||{id:otherId,name:"Usuario"};
+    setConversations(prev=>{
+      if(prev.find(c=>c.id===conv.id))return prev;
+      return [{...conv,pa:{id:currentUser.id},pb:other},...prev];
+    });
+    setActiveConvId(conv.id);
+    setShowNewConv(false);
+    setShowConvList(false);
+  }
+
+  const fmtT=(ts)=>{
+    if(!ts)return "";
+    const d=new Date(ts),now=new Date(),diff=now-d;
+    if(diff<60000)return "ahora";
+    if(diff<3600000)return `${Math.floor(diff/60000)}m`;
+    if(d.toDateString()===now.toDateString())return d.toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
+    return d.toLocaleDateString("es",{day:"numeric",month:"short"});
+  };
+
+  const activeConv=conversations.find(c=>c.id===activeConvId);
+  const other=activeConv?(activeConv.pa?.id===currentUser.id?activeConv.pb:activeConv.pa):null;
+
+  return(
+    <div className="chat-layout">
+      {/* Conversation list */}
+      <div className={`chat-sidebar${!showConvList?" mob-hidden":""}`}>
+        <div className="chat-sidebar-hdr">
+          <span>💬 Mensajes</span>
+          {isAdmin&&<button className="btn btn-sm btn-primary" style={{fontSize:11}} onClick={()=>setShowNewConv(true)}>+ Nuevo</button>}
+        </div>
+        <div className="chat-convs">
+          {loading&&<div style={{padding:24,textAlign:"center",color:AV.muted,fontSize:"var(--fs-meta)"}}>Cargando…</div>}
+          {!loading&&conversations.length===0&&<div style={{padding:24,textAlign:"center",color:AV.muted,fontSize:"var(--fs-meta)"}}>Sin conversaciones aún.{isAdmin&&" Usa '+ Nuevo' para iniciar una."}</div>}
+          {[...conversations].sort((a,b)=>new Date(b.last_message_at)-new Date(a.last_message_at)).map(conv=>{
+            const o=conv.pa?.id===currentUser.id?conv.pb:conv.pa;
+            const oName=o?.name||"Usuario";
+            return(
+              <div key={conv.id} className={`chat-conv-item${conv.id===activeConvId?" active":""}`}
+                onClick={()=>{setActiveConvId(conv.id);setShowConvList(false);}}>
+                <div className="chat-conv-avatar">{ini(oName)}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div className="chat-conv-name">{oName}</div>
+                  <div className="chat-conv-role">{ROLE_LABELS[o?.role]||""}</div>
+                </div>
+                <div className="chat-conv-time">{fmtT(conv.last_message_at)}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Message thread */}
+      <div className={`chat-main${showConvList&&!activeConvId?" mob-hidden":""}`}>
+        {!activeConvId?(
+          <div className="chat-empty">
+            <span style={{fontSize:32}}>💬</span>
+            <span>Selecciona una conversación</span>
+          </div>
+        ):(
+          <>
+            <div className="chat-thread-hdr">
+              <button className="btn btn-sm" onClick={()=>setShowConvList(true)}>←</button>
+              <div className="chat-conv-avatar" style={{width:32,height:32,fontSize:11}}>{ini(other?.name||"?")}</div>
+              <div>
+                <div style={{fontSize:"var(--fs-meta)",fontWeight:500}}>{other?.name||"—"}</div>
+                <div style={{fontSize:11,color:AV.muted}}>{ROLE_LABELS[other?.role]||""}</div>
+              </div>
+            </div>
+            <div className="chat-messages">
+              {messages.length===0&&<div style={{textAlign:"center",color:AV.muted,fontSize:"var(--fs-meta)",margin:"auto 0"}}>Sin mensajes aún. ¡Saluda!</div>}
+              {messages.map((m,i)=>{
+                const mine=m.sender_id===currentUser.id;
+                return(
+                  <div key={m.id||i} className={`chat-msg ${mine?"mine":"theirs"}`}>
+                    <div className="chat-bubble">{m.content}</div>
+                    <div className="chat-msg-time">{fmtT(m.created_at)}</div>
+                  </div>
+                );
+              })}
+              <div ref={msgEndRef}/>
+            </div>
+            <div className="chat-input-wrap">
+              <textarea className="chat-textarea" rows={1} placeholder="Escribe un mensaje…"
+                value={newMsg} onChange={e=>setNewMsg(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();handleSend();}}}/>
+              <button className="btn btn-primary" style={{padding:"8px 18px",borderRadius:20,height:40,flexShrink:0}}
+                onClick={handleSend} disabled={!newMsg.trim()}>→</button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* New conversation picker */}
+      {showNewConv&&(
+        <div className="modal-overlay" onClick={()=>setShowNewConv(false)}>
+          <div className="modal slide-in" style={{maxWidth:360}} onClick={e=>e.stopPropagation()}>
+            <div className="modal-title">Nueva conversación</div>
+            <div style={{maxHeight:320,overflowY:"auto",marginTop:12,display:"flex",flexDirection:"column",gap:4}}>
+              {allProfiles.filter(p=>p.id!==currentUser.id).map(p=>(
+                <div key={p.id}
+                  style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:8,cursor:"pointer",
+                    border:`1px solid ${AV.border}`,transition:"all .1s"}}
+                  onClick={()=>startConv(p.id)}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor=AV.teal}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor=AV.border}>
+                  <div className="chat-conv-avatar" style={{width:36,height:36,fontSize:12}}>{ini(p.name)}</div>
+                  <div>
+                    <div style={{fontSize:"var(--fs-meta)",fontWeight:500}}>{p.name}</div>
+                    <div style={{fontSize:11,color:AV.muted}}>{ROLE_LABELS[p.role]||p.role}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="modal-actions"><button className="btn" onClick={()=>setShowNewConv(false)}>Cancelar</button></div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -2595,11 +2960,11 @@ function computeTareas(leads,currentUser,projectConfig){
   const primerContactoMs=(Number(projectConfig?.crm_tiempo_primer_contacto_min??30))*60000;
   const seguimientoMs=(Number(projectConfig?.crm_intervalo_intentos_horas??24))*3600000;
   const isAdmin=currentUser?.role==="admin";
-  const isBroker=currentUser?.role==="broker";
+  const isBrokerExterno=currentUser?.role==="broker_externo";
   const myLeads=leads.filter(l=>{
     if(!PIPELINE_STAGES_SET.has(l.stage))return false;
     if(isAdmin)return true;
-    if(isBroker)return l._brokerId===currentUser?.id;
+    if(isBrokerExterno)return l._brokerId===currentUser?.id;
     return l._asesorId===currentUser?.id;
   });
   const tasks=[];
@@ -2662,7 +3027,7 @@ function computeNotifs(leads,units,asesores,metas,role){
   }
 
   // Recordatorio pre-visita (24h antes) — informativa, sin acción directa
-  if(role==="vendedor"||role==="admin"){
+  if(role==="vendedor"||role==="vendedor_mb"||role==="admin"){
     leads.filter(l=>l.stage==="cita_agendada"&&l.fechaCita).forEach(l=>{
       const diff=l.fechaCita-now;
       if(diff>0&&diff<=24*3600000)
@@ -2933,7 +3298,7 @@ function AsesorTareas({leads,onOpen,currentUser,projectConfig,refreshData}){
 
 // ── MIS LEADS ─────────────────────────────────────────────────────────────────
 function AsesorMisLeads({leads,onOpen,currentUser,role}){
-  const mis=role==="broker"
+  const mis=role==="broker_externo"
     ?leads.filter(l=>l._brokerId===currentUser?.id)
     :leads.filter(l=>l._asesorId===currentUser?.id);
   return(
@@ -3122,8 +3487,7 @@ export default function AquaVivantCRM(){
   const [storedNotifs,setStoredNotifs]=useState([]);
   const [showMobileSidebar,setShowMobileSidebar]=useState(false);
   const [showProfileModal,setShowProfileModal]=useState(false);
-  const [showChat,setShowChat]=useState(false);
-  const [chatMessages,setChatMessages]=useState([{type:"bot",text:"Hola, soy tu asistente de IA. ¿En qué puedo ayudarte?"}]);
+  const [rolePermissions,setRolePermissions]=useState({});
 
   const role=currentUser?.role||"admin";
   const [isMobile,setIsMobile]=useState(typeof window!=="undefined"&&window.innerWidth<=768);
@@ -3152,8 +3516,8 @@ export default function AquaVivantCRM(){
   },[]);
 
   const refreshData=async()=>{
-    const [l,a,u,t,ms,pc,g,sn]=await Promise.all([fetchLeads(),fetchAsesores(),fetchUnits(),fetchTowers(),fetchMarketingSpend(),fetchProjectConfig(),fetchGoals(),fetchNotifications()]);
-    setLeads(l);setAsesores(a);setUnits(u);setTowers(t);setMarketingSpend(ms);setProjectConfig(pc);setGoals(g);setStoredNotifs(sn);
+    const [l,a,u,t,ms,pc,g,sn,rp]=await Promise.all([fetchLeads(),fetchAsesores(),fetchUnits(),fetchTowers(),fetchMarketingSpend(),fetchProjectConfig(),fetchGoals(),fetchNotifications(),fetchRolePermissions()]);
+    setLeads(l);setAsesores(a);setUnits(u);setTowers(t);setMarketingSpend(ms);setProjectConfig(pc);setGoals(g);setStoredNotifs(sn);setRolePermissions(rp);
   };
 
   useEffect(()=>{
@@ -3171,7 +3535,7 @@ export default function AquaVivantCRM(){
     return()=>clearInterval(id);
   },[currentUser?.id]);
 
-  useEffect(()=>setView(role==="admin"?"dashboard":"tareas"),[role]);
+  useEffect(()=>setView(role==="admin"?"dashboard":role==="broker_externo"?"mis_leads":"tareas"),[role]);
 
   const allComputedNotifs=computeNotifs(leads,units,asesores,goals,role);
   const computedNotifs=allComputedNotifs.filter(n=>!dismissedAlerts.includes(n.id));
@@ -3187,19 +3551,21 @@ export default function AquaVivantCRM(){
     {s:"Principal"},{id:"dashboard",label:"Dashboard",icon:"◈"},{id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifBadge},
     {s:"Pipeline"},{id:"pipeline",label:"Pipeline",icon:"⟶"},{id:"leads",label:"Todos los leads",icon:"◉"},
     {s:"Administración"},{id:"equipo",label:"Equipo & Turnos",icon:"⚡"},{id:"inventario",label:"Inventario",icon:"🏗️"},
+    {s:"Comunicación"},{id:"chat",label:"Mensajes",icon:"💬"},
   ];
   const vendedorNav=[
     {s:"Mi día"},{id:"tareas",label:"Mis Tareas",icon:"✓"},{id:"mis_leads",label:"Mis Leads",icon:"◉"},
     {id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifBadge},
     {s:"Información"},{id:"inventario",label:"Inventario",icon:"🏗️"},
+    {s:"Comunicación"},{id:"chat",label:"Mensajes",icon:"💬"},
   ];
-  const brokerNav=[
-    {s:"Mi día"},{id:"tareas",label:"Mis Tareas",icon:"✓"},{id:"mis_leads",label:"Mis Leads",icon:"◉"},
+  const brokerExternoNav=[
+    {s:"Mis Leads"},{id:"mis_leads",label:"Mis Leads",icon:"◉"},
     {id:"notificaciones",label:"Notificaciones",icon:"🔔",badge:notifBadge},
-    {s:"Información"},{id:"inventario",label:"Inventario",icon:"🏗️"},
+    {s:"Comunicación"},{id:"chat",label:"Mensajes",icon:"💬"},
   ];
-  const navItems=role==="admin"?adminNav:role==="broker"?brokerNav:vendedorNav;
-  const titles={dashboard:"Dashboard",notificaciones:"Notificaciones",pipeline:"Pipeline de ventas",leads:"Todos los leads",equipo:"Equipo & Asignaciones",inventario:"Inventario de unidades",tareas:"Mis tareas del día",mis_leads:"Mis leads"};
+  const navItems=role==="admin"?adminNav:role==="broker_externo"?brokerExternoNav:vendedorNav;
+  const titles={dashboard:"Dashboard",notificaciones:"Notificaciones",pipeline:"Pipeline de ventas",leads:"Todos los leads",equipo:"Equipo & Asignaciones",inventario:"Inventario de unidades",tareas:"Mis tareas del día",mis_leads:"Mis leads",chat:"Mensajes"};
 
   async function addLead(f){
     let asignado=null;
@@ -3269,7 +3635,7 @@ export default function AquaVivantCRM(){
                 </div>
                 <div style={{flex:1}}>
                   <div className="user-name">{currentUser?.name||""}</div>
-                  <div className="user-role" style={{fontSize:"12px"}}>{role==="admin"?"Administrador":role==="vendedor"?"Vendedor":"Broker"}</div>
+                  <div className="user-role" style={{fontSize:"12px"}}>{ROLE_LABELS[role]||role}</div>
                 </div>
               </div>
               <nav className="sidebar-nav">
@@ -3291,7 +3657,7 @@ export default function AquaVivantCRM(){
                 <div className="user-avatar" style={{background:currentUser?.photo?`url(${currentUser.photo}) center/cover`:""}}>
                   {!currentUser?.photo&&ini(currentUser?.name||"")}
                 </div>
-                <div className="user-info"><div className="user-name">{currentUser?.name||""}</div><div className="user-role">{role==="admin"?"Administrador":role==="vendedor"?"Vendedor":"Broker"}</div></div>
+                <div className="user-info"><div className="user-name">{currentUser?.name||""}</div><div className="user-role">{ROLE_LABELS[role]||role}</div></div>
               </div>
             </>
           )}
@@ -3302,7 +3668,7 @@ export default function AquaVivantCRM(){
               <>
                 <div className="topbar-title" style={{flex:1,marginLeft:0,fontSize:16,letterSpacing:"0.04em"}}>AQUA VIVANT CRM</div>
                 {role==="admin"&&<button className="btn btn-primary" onClick={()=>setShowNewLead(true)} style={{minWidth:44,minHeight:44,padding:"6px 10px"}}>➕</button>}
-                {role==="broker"&&<button className="btn btn-primary" onClick={()=>setShowBrokerNewLead(true)} style={{minWidth:44,minHeight:44,padding:"6px 10px"}}>➕</button>}
+                {role==="broker_externo"&&<button className="btn btn-primary" onClick={()=>setShowBrokerNewLead(true)} style={{minWidth:44,minHeight:44,padding:"6px 10px"}}>➕</button>}
                 <button className="theme-toggle" onClick={toggleTheme} title={theme==="dark"?"Cambiar a tema claro":"Cambiar a tema oscuro"}>{theme==="dark"?"☀️":"🌙"}</button>
                 <button onClick={()=>setShowMobileSidebar(!showMobileSidebar)} style={{background:"none",border:"none",color:AV.text,fontSize:20,cursor:"pointer",padding:"8px 12px",minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
               </>
@@ -3311,7 +3677,7 @@ export default function AquaVivantCRM(){
                 <div className="topbar-title">{titles[view]||""}</div>
                 <div className="topbar-actions">
                   {role==="admin"&&<button className="btn btn-primary" onClick={()=>setShowNewLead(true)}>+ Nuevo lead</button>}
-                  {role==="broker"&&<button className="btn btn-primary" onClick={()=>setShowBrokerNewLead(true)}>+ Registrar lead</button>}
+                  {role==="broker_externo"&&<button className="btn btn-primary" onClick={()=>setShowBrokerNewLead(true)}>+ Registrar lead</button>}
                   <div style={{width:8,height:8,borderRadius:"50%",background:AV.teal}} className="pulse"/>
                   <span style={{fontSize:"var(--fs-body)",color:AV.muted}}>En línea</span>
                   <button className="theme-toggle" onClick={toggleTheme} title={theme==="dark"?"Cambiar a tema claro":"Cambiar a tema oscuro"}>{theme==="dark"?"☀️":"🌙"}</button>
@@ -3325,21 +3691,21 @@ export default function AquaVivantCRM(){
             {role==="admin"&&view==="dashboard"      &&<AdminDashboard leads={leads} asesores={asesores} units={units} towers={towers} onOpen={setFicha} marketingSpend={marketingSpend} projectConfig={projectConfig} goals={goals} refreshData={refreshData} upsertMarketingSpend={upsertMarketingSpend} upsertProjectConfig={upsertProjectConfig} insertGoal={insertGoal} updateGoal={updateGoal} deleteGoal={deleteGoal} setView={setView}/>}
             {role==="admin"&&view==="pipeline"       &&<AdminPipeline leads={leads} onOpen={setFicha} setView={setView}/>}
             {role==="admin"&&view==="leads"          &&<AdminLeads leads={leads} onOpen={setFicha}/>}
-            {role==="admin"&&view==="equipo"         &&<AdminEquipo leads={leads} asesores={asesores} refreshData={refreshData} onOpen={setFicha}/>}
+            {role==="admin"&&view==="equipo"         &&<AdminEquipo leads={leads} asesores={asesores} refreshData={refreshData} onOpen={setFicha} rolePermissions={rolePermissions}/>}
             {role==="admin"&&view==="inventario"     &&<AdminInventario units={units} towers={towers} refreshData={refreshData}/>}
             {view==="notificaciones"&&<NotifPanel computedNotifs={computedNotifs} storedNotifs={storedNotifs} onMarkRead={handleMarkRead} onDismiss={dismissAlert} setView={setView} role={role}/>}
-            {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser} projectConfig={projectConfig} refreshData={refreshData}/>}
-            {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="mis_leads" &&<AsesorMisLeads leads={leads} onOpen={setFicha} currentUser={currentUser} role={role}/>}
-            {(role==="vendedor"||role==="broker"||role==="asesor")&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={role==="vendedor"&&!!currentUser?.canBlockUnits} brokerMode={role==="broker"} refreshData={refreshData}/>}
+            {(role==="vendedor"||role==="vendedor_mb"||role==="broker_externo"||role==="asesor")&&view==="tareas"    &&<AsesorTareas leads={leads} onOpen={setFicha} currentUser={currentUser} projectConfig={projectConfig} refreshData={refreshData}/>}
+            {(role==="vendedor"||role==="vendedor_mb"||role==="broker_externo"||role==="asesor")&&view==="mis_leads" &&<AsesorMisLeads leads={leads} onOpen={setFicha} currentUser={currentUser} role={role}/>}
+            {(role==="vendedor"||role==="vendedor_mb"||role==="asesor")&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={(role==="vendedor"||role==="vendedor_mb")&&!!currentUser?.canBlockUnits} brokerMode={false} refreshData={refreshData}/>}
+            {role==="broker_externo"&&view==="inventario" &&<VendedorInventario units={units} currentUser={currentUser} canBlock={false} brokerMode={true} refreshData={refreshData}/>}
+            {view==="chat"&&currentUser&&<ChatPanel currentUser={currentUser} isAdmin={role==="admin"}/>}
             </>)}
           </div>
         </main>
         {showNewLead&&role==="admin"&&<NewLeadModal onClose={()=>setShowNewLead(false)} onSave={addLead} asesores={asesores} leads={leads}/>}
-        {showBrokerNewLead&&role==="broker"&&<BrokerNewLeadModal onClose={()=>setShowBrokerNewLead(false)} onSave={addLeadAsBroker}/>}
+        {showBrokerNewLead&&role==="broker_externo"&&<BrokerNewLeadModal onClose={()=>setShowBrokerNewLead(false)} onSave={addLeadAsBroker}/>}
         {ficha&&<FichaModal lead={ficha} onClose={()=>setFicha(null)} asesores={asesores} onReassign={handleReassignLead}/>}
         {showProfileModal&&<UserProfileModal user={currentUser} onClose={()=>{setShowProfileModal(false);if(isMobile)setShowMobileSidebar(false);}} onSave={async(data)=>{await updateOwnProfile(currentUser.id,data);setCurrentUser(p=>({...p,...data}));}}/>}
-        {!showChat&&<button onClick={()=>setShowChat(true)} style={{position:"fixed",bottom:20,right:20,width:56,height:56,borderRadius:"50%",background:AV.teal,border:"none",cursor:"pointer",color:AV.bg,fontSize:24,display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,boxShadow:"0 4px 12px rgba(45,212,191,.3)"}}  title="Abrir chat con IA">💬</button>}
-        {showChat&&<ChatIA messages={chatMessages} onSendMessage={setChatMessages} onClose={()=>setShowChat(false)}/>}
       </div>
       )}
     </>

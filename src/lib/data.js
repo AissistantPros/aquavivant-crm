@@ -28,7 +28,10 @@ export async function fetchProfileByAuthUserId(authUserId) {
 }
 
 export async function fetchAsesores() {
-  const { data: profiles, error } = await supabase.from("profiles").select("*").eq("role", "vendedor").order("turno");
+  const { data: profiles, error } = await supabase
+    .from("profiles").select("*")
+    .in("role", ["vendedor", "vendedor_mb"])
+    .order("turno");
   if (error) throw error;
   const { data: metas, error: metasError } = await supabase.from("metas").select("*");
   if (metasError) throw metasError;
@@ -274,18 +277,115 @@ export async function insertLeadAsBroker({ name, phone, brokerId, authorName }) 
   return lead.id;
 }
 
-export async function insertAsesor({ name, email, phone, turno }) {
+export async function fetchAllTeamProfiles() {
   const { data, error } = await supabase
     .from("profiles")
-    .insert({ name, email, phone, role: "vendedor", turno, activo: true })
+    .select("*")
+    .in("role", ["vendedor", "vendedor_mb", "broker_externo"])
+    .order("turno");
+  if (error) throw error;
+  return data.map((p) => ({
+    id: p.id,
+    name: p.name,
+    email: p.email,
+    phone: p.phone,
+    role: p.role,
+    turno: p.turno,
+    activo: p.activo,
+    tiempo_resp: p.tiempo_resp,
+    conversion: p.conversion,
+    canBlockUnits: p.can_block_units,
+  }));
+}
+
+export async function insertAsesor({ name, email, phone, turno, role = "vendedor" }) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .insert({ name, email, phone, role, turno, activo: true })
     .select()
     .single();
   if (error) throw error;
   return data.id;
 }
 
-export async function updateAsesor(id, { name, email, phone }) {
-  const { error } = await supabase.from("profiles").update({ name, email, phone }).eq("id", id);
+export async function updateAsesor(id, { name, email, phone, role }) {
+  const patch = { name, email, phone };
+  if (role) patch.role = role;
+  const { error } = await supabase.from("profiles").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+// Role permissions
+export async function fetchRolePermissions() {
+  const { data, error } = await supabase.from("role_permissions").select("*");
+  if (error) throw error;
+  return Object.fromEntries((data || []).map((r) => [r.role, r]));
+}
+
+export async function upsertRolePermissions(role, perms) {
+  const { error } = await supabase.from("role_permissions").upsert(
+    { role, ...perms, updated_at: new Date().toISOString() },
+    { onConflict: "role" }
+  );
+  if (error) throw error;
+}
+
+// Chat
+export async function fetchOrCreateConversation(myId, otherId) {
+  const { data: existing } = await supabase
+    .from("conversations")
+    .select("*")
+    .or(`and(participant_a.eq.${myId},participant_b.eq.${otherId}),and(participant_a.eq.${otherId},participant_b.eq.${myId})`)
+    .maybeSingle();
+  if (existing) return existing;
+  const a = myId < otherId ? myId : otherId;
+  const b = myId < otherId ? otherId : myId;
+  const { data, error } = await supabase.from("conversations").insert({ participant_a: a, participant_b: b }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchConversations(myId, isAdmin) {
+  let query = supabase
+    .from("conversations")
+    .select("*, pa:profiles!participant_a(id,name,role), pb:profiles!participant_b(id,name,role)")
+    .order("last_message_at", { ascending: false });
+  if (!isAdmin) query = query.or(`participant_a.eq.${myId},participant_b.eq.${myId}`);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((c) => {
+    const other = c.participant_a === myId ? c.pb : c.pa;
+    return { ...c, other };
+  });
+}
+
+export async function fetchMessages(conversationId) {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*, sender:profiles!sender_id(id,name,role)")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function sendMessage(conversationId, senderId, content) {
+  const { data, error } = await supabase
+    .from("messages")
+    .insert({ conversation_id: conversationId, sender_id: senderId, content })
+    .select("*, sender:profiles!sender_id(id,name,role)")
+    .single();
+  if (error) throw error;
+  await supabase.from("conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversationId);
+  return data;
+}
+
+export async function markMessagesRead(conversationId) {
+  const { error } = await supabase
+    .from("messages")
+    .update({ read_at: new Date().toISOString() })
+    .eq("conversation_id", conversationId)
+    .is("read_at", null);
   if (error) throw error;
 }
 
