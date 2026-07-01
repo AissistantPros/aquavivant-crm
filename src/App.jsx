@@ -144,13 +144,8 @@ const css = `
   .panel-title{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);flex:1;}
   .panel-body{padding:16px 18px;}
   .pipeline-fuera-label{font-size:var(--fs-meta);color:var(--text-muted);}
-  .pipeline-col{min-width:200px;width:200px;max-width:220px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px;flex-shrink:0;}
-  .pipeline-col-empty{opacity:.45;border-style:dashed;}
-  .pipeline-col-header{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
   .col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-  .col-name{font-size:var(--fs-meta);font-weight:500;color:var(--text-primary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .col-count{font-size:11px;font-weight:600;color:var(--text-muted);background:var(--bg-deep);padding:2px 6px;border-radius:10px;flex-shrink:0;}
-  .lead-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all .15s;}
+  .lead-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s;}
   .lead-card:hover{border-color:var(--accent-dim);}
   .lead-link{font-size:var(--fs-meta);font-weight:500;color:var(--accent);cursor:pointer;background:none;border:none;padding:0;font-family:var(--font-body);transition:color .15s;text-align:left;}
   .lead-link:hover{opacity:.8;text-decoration:underline;}
@@ -158,69 +153,21 @@ const css = `
   .source-badge{padding:2px 7px;border-radius:4px;font-size:var(--fs-meta);font-weight:500;letter-spacing:.03em;}
   .lead-timer{font-size:var(--fs-meta);margin-top:6px;}
   .timer-hot{color:var(--danger);}.timer-warn{color:var(--warning);}.timer-ok{color:var(--accent);}
-  .pipeline-kanban-hdr{display:none;}
-  .pipeline-wrap{display:none;}
-  .pipeline-tabs-layout{display:none;}
-  .pipeline-mobile{display:none;}
-  .pipeline-kanban-nav-btn{display:none;}
-  .pipeline-stage-nav{display:none;}
-  @media(min-width:1401px){
-    .pipeline-kanban-hdr{display:block;position:sticky;top:0;z-index:10;background:var(--bg-base);padding-bottom:4px;margin-bottom:0;}
-    .pipeline-stage-nav{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:8px;}
-    .pipeline-stage-nav::-webkit-scrollbar{display:none;}
-    .pipeline-stage-nav-pill{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-muted);font-size:var(--fs-meta);cursor:pointer;transition:all .15s;white-space:nowrap;opacity:.55;}
-    .pipeline-stage-nav-pill:hover{opacity:1;border-color:var(--accent-dim);color:var(--text-primary);}
-    .pipeline-stage-nav-pill.in-view{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);opacity:1;}
-    .pipeline-stage-nav-pill.in-view .pipeline-stage-nav-count{background:var(--accent-dim);color:var(--bg-base);}
-    .pipeline-stage-nav-count{font-size:11px;font-weight:600;background:var(--bg-deep);padding:1px 5px;border-radius:7px;}
-    .pipeline-kanban-hdr-inner{display:flex;gap:12px;overflow:hidden;}
-    .pipeline-kanban-hdr-col{min-width:200px;width:200px;max-width:220px;flex-shrink:0;background:var(--bg-surface);border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 10px;}
-    .pipeline-kanban-hdr-col.pipeline-col-empty{opacity:.45;border-style:dashed;border-bottom:none;}
-    .pipeline-wrap{display:block;position:relative;}
-    .pipeline-wrap::before{content:'';position:absolute;top:0;left:0;bottom:16px;width:60px;background:linear-gradient(to right,var(--bg-base),transparent);pointer-events:none;z-index:3;transition:opacity .2s;opacity:0;}
-    .pipeline-wrap:not(.at-start)::before{opacity:1;}
-    .pipeline-wrap::after{content:'';position:absolute;top:0;right:0;bottom:16px;width:60px;background:linear-gradient(to left,var(--bg-base),transparent);pointer-events:none;z-index:3;transition:opacity .2s;}
-    .pipeline-wrap.at-end::after{opacity:0;}
-    .pipeline-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;scrollbar-width:thin;scrollbar-color:var(--border) var(--bg-surface);}
-    .pipeline-scroll::-webkit-scrollbar{height:6px;}
-    .pipeline-scroll::-webkit-scrollbar-track{background:var(--bg-surface);}
-    .pipeline-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
-    .pipeline-scroll::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
-    .pipeline-col{border-radius:0 0 10px 10px;}
-    .pipeline-kanban-nav-btn{display:flex;align-items:center;justify-content:center;position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:40px;height:40px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary);cursor:pointer;font-size:18px;line-height:1;box-shadow:0 2px 10px rgba(0,0,0,.45);transition:background .15s,border-color .15s;padding:0;}
-    .pipeline-kanban-nav-btn:hover{background:var(--bg-hover,var(--bg-surface));border-color:var(--accent-dim);}
-    .pipeline-kanban-nav-btn.nav-left{left:8px;}
-    .pipeline-kanban-nav-btn.nav-right{right:8px;}
-  }
-  @media(min-width:768px) and (max-width:1400px){
-    .pipeline-tabs-layout{display:flex;flex-direction:column;}
-    .pipeline-tabs-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none;margin-bottom:4px;}
-    .pipeline-tabs-row::-webkit-scrollbar{display:none;}
-    .pipeline-tab{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-dim);font-size:var(--fs-meta);cursor:pointer;transition:all .15s;white-space:nowrap;}
-    .pipeline-tab:hover{color:var(--text-primary);border-color:var(--accent-dim);}
-    .pipeline-tab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
-    .pipeline-tab-count{font-size:11px;font-weight:600;background:var(--bg-deep);padding:1px 6px;border-radius:8px;}
-    .pipeline-tab.active .pipeline-tab-count{background:var(--accent-dim);color:var(--bg-base);}
-    .pipeline-tab-empty{opacity:.5;}
-  }
-  @media(max-width:767px){
+  /* ── Pipeline: layout único para todas las pantallas ── */
+  .pipeline-nav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:10px;margin-bottom:8px;position:sticky;top:0;z-index:8;background:var(--bg-base);padding-top:4px;}
+  .pipeline-nav::-webkit-scrollbar{display:none;}
+  .pipeline-tab{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:20px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-dim);font-size:var(--fs-meta);cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .pipeline-tab:hover{color:var(--text-primary);border-color:var(--accent-dim);}
+  .pipeline-tab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+  .pipeline-tab-count{font-size:11px;font-weight:600;background:var(--bg-deep);padding:1px 6px;border-radius:8px;}
+  .pipeline-tab.active .pipeline-tab-count{background:var(--accent-dim);color:var(--bg-base);}
+  .pipeline-tab-empty{opacity:.45;}
+  .pipeline-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+  .pipeline-empty{text-align:center;color:var(--text-muted);font-size:var(--fs-meta);padding:48px 0;opacity:.55;}
+  @media(max-width:640px){
     .pipeline-fuera-label{display:none;}
-    .pipeline-mobile{display:flex;flex-direction:column;}
-    .pipeline-mob-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
-    .pipeline-mob-btn{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text-primary);flex-shrink:0;}
-    .pipeline-mob-btn:disabled{opacity:.25;cursor:default;}
-    .pipeline-mob-center{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;}
-    .pipeline-mob-title{font-size:var(--fs-body);font-weight:500;color:var(--text-primary);display:flex;align-items:center;gap:6px;}
-    .pipeline-mob-pos{font-size:var(--fs-meta);color:var(--text-muted);}
-    .pipeline-mob-dots{display:flex;gap:4px;}
-    .pipeline-mob-dot{width:5px;height:5px;border-radius:50%;background:var(--border-light);transition:background .15s;}
-    .pipeline-mob-dot.active{background:var(--accent);}
-    .pipeline-mob-cards{padding-bottom:8px;}
-    .pipeline-mob-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;}
-    .pipeline-mob-card:hover{border-color:var(--accent-dim);}
-    .pipeline-mob-row{display:flex;align-items:center;gap:6px;}
-    .pipeline-mob-urgency{width:7px;height:7px;border-radius:50%;background:var(--danger);flex-shrink:0;}
-    .pipeline-mob-empty{text-align:center;color:var(--text-muted);font-size:var(--fs-meta);padding:32px 0;opacity:.6;}
+    .pipeline-tab{padding:5px 10px;font-size:11px;gap:4px;}
+    .pipeline-cards{grid-template-columns:1fr;}
   }
   .tasks-list{display:flex;flex-direction:column;gap:8px;}
   .task-item{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s;display:flex;gap:14px;align-items:flex-start;}
@@ -2030,50 +1977,11 @@ function RegistrarInversionModal({onClose,onSaved}){
 }
 
 // ── PIPELINE ──────────────────────────────────────────────────────────────────
-function AdminPipeline({leads,onOpen,setView}){
+function AdminPipeline({leads,onOpen}){
   const ps=STAGES.filter(s=>!["repechaje","perdido"].includes(s.id));
   const [filterStage,setFilterStage]=useState(null);
   const [stageIdx,setStageIdx]=useState(0);
-  const [atEnd,setAtEnd]=useState(false);
-  const [atStart,setAtStart]=useState(true);
-  const [kanbanScroll,setKanbanScroll]=useState({left:0,width:0});
-  const scrollRef=useRef(null);
-  const headerRef=useRef(null);
   const displayLeads=filterStage?leads.filter(l=>l.stage===filterStage):leads;
-
-  // Gradient + nav-button + stage nav visibility tracker
-  useLayoutEffect(()=>{
-    const el=scrollRef.current;
-    if(!el)return;
-    const check=()=>{
-      setAtEnd(el.scrollLeft+el.clientWidth>=el.scrollWidth-10);
-      setAtStart(el.scrollLeft<=10);
-      setKanbanScroll({left:el.scrollLeft,width:el.clientWidth});
-    };
-    check();
-    el.addEventListener('scroll',check,{passive:true});
-    return()=>el.removeEventListener('scroll',check);
-  },[filterStage]);
-
-  // Sticky header sync with kanban scroll (large desktop)
-  useLayoutEffect(()=>{
-    const scrollEl=scrollRef.current;
-    const headerEl=headerRef.current;
-    if(!scrollEl||!headerEl)return;
-    const sync=()=>{headerEl.scrollLeft=scrollEl.scrollLeft;};
-    scrollEl.addEventListener('scroll',sync,{passive:true});
-    return()=>scrollEl.removeEventListener('scroll',sync);
-  },[]);
-
-  // Scroll kanban to active stage when stageIdx changes (tabs/mobile → large desktop resize)
-  useLayoutEffect(()=>{
-    const el=scrollRef.current;
-    if(!el)return;
-    const col=stageIdx*(200+12);
-    if(col<el.scrollLeft||col+200>el.scrollLeft+el.clientWidth){
-      el.scrollLeft=col;
-    }
-  },[stageIdx]);
 
   if(filterStage){
     return(
@@ -2082,18 +1990,13 @@ function AdminPipeline({leads,onOpen,setView}){
         <div style={{fontSize:18,fontWeight:500,color:AV.text,marginBottom:16}}>
           <StageChip stage={filterStage}/> ({displayLeads.length} leads)
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+        <div className="pipeline-cards">
           {displayLeads.map(l=>(
-            <div key={l.id} className="panel" style={{cursor:"pointer"}} onClick={()=>onOpen(l)}>
-              <div className="panel-body">
-                <div style={{fontSize:"var(--fs-body)",fontWeight:500,color:AV.text,marginBottom:8}}><LeadLink lead={l} onOpen={onOpen}/></div>
-                <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-                  <SrcBadge source={l.source}/>
-                  {l.interes&&<span style={{fontSize:"var(--fs-meta)",color:AV.textDim}}>{l.interes}</span>}
-                </div>
-                <div style={{fontSize:"var(--fs-meta)",color:AV.muted}}>Asesor: {l.asesor||"Sin asignar"}</div>
-                <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:4}}>Entrada: {timeAgo(l.created)}</div>
-              </div>
+            <div key={l.id} className="lead-card" onClick={()=>onOpen(l)}>
+              <LeadLink lead={l} onOpen={onOpen}/>
+              <div className="lead-meta"><SrcBadge source={l.source}/>{l.interes&&<span style={{color:AV.textDim}}>{l.interes}</span>}</div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:4}}>Asesor: {l.asesor||"Sin asignar"}</div>
+              <div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:2}}>Entrada: {timeAgo(l.created)}</div>
             </div>
           ))}
         </div>
@@ -2107,7 +2010,7 @@ function AdminPipeline({leads,onOpen,setView}){
   return(
     <>
       {/* Repechaje / Perdido bar */}
-      <div style={{marginBottom:16}}>
+      <div style={{marginBottom:12}}>
         <div className="panel" style={{padding:"10px 16px",display:"flex",gap:24,alignItems:"center"}}>
           {["repechaje","perdido"].map(s=>(
             <button key={s} onClick={()=>setFilterStage(s)} style={{display:"flex",gap:8,alignItems:"center",background:"none",border:"none",cursor:"pointer",padding:0}}>
@@ -2119,137 +2022,41 @@ function AdminPipeline({leads,onOpen,setView}){
         </div>
       </div>
 
-      {/* ── LARGE DESKTOP (>1400px): sticky header + kanban board ── */}
-      <div className="pipeline-kanban-hdr">
-        {/* Stage jump nav */}
-        <div className="pipeline-stage-nav">
-          {ps.map((stage,i)=>{
-            const cnt=leads.filter(l=>l.stage===stage.id).length;
-            const COL_W=212;
-            const colStart=i*COL_W;
-            const colEnd=colStart+200;
-            const inView=colStart<kanbanScroll.left+kanbanScroll.width&&colEnd>kanbanScroll.left;
-            return(
-              <div key={stage.id} className={`pipeline-stage-nav-pill${inView?" in-view":""}`}
-                onClick={()=>{if(scrollRef.current)scrollRef.current.scrollLeft=i*COL_W;}}>
-                <div className="col-dot" style={{background:stage.dot}}/>
-                {stage.label}
-                <span className="pipeline-stage-nav-count">{cnt}</span>
-              </div>
-            );
-          })}
-        </div>
-        {/* Column label row synced with scroll */}
-        <div className="pipeline-kanban-hdr-inner" ref={headerRef}>
-          {ps.map(stage=>{
-            const cnt=leads.filter(l=>l.stage===stage.id).length;
-            return(
-              <div key={stage.id} className={`pipeline-kanban-hdr-col${cnt===0?" pipeline-col-empty":""}`}>
-                <div className="col-dot" style={{background:stage.dot}}/>
-                <div className="col-name">{stage.label}</div>
-                <div className="col-count">{cnt}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className={`pipeline-wrap${atEnd?" at-end":""}${atStart?" at-start":""}`}>
-        {!atStart&&<button className="pipeline-kanban-nav-btn nav-left" onClick={()=>scrollRef.current?.scrollBy({left:-636,behavior:'smooth'})}>←</button>}
-        {!atEnd&&<button className="pipeline-kanban-nav-btn nav-right" onClick={()=>scrollRef.current?.scrollBy({left:636,behavior:'smooth'})}>→</button>}
-        <div className="pipeline-scroll" ref={scrollRef}>
-          {ps.map(stage=>{
-            const sl=leads.filter(l=>l.stage===stage.id);
-            return(
-              <div key={stage.id} className={`pipeline-col${sl.length===0?" pipeline-col-empty":""}`}>
-                {sl.length===0
-                  ? <div style={{textAlign:"center",color:AV.muted,fontSize:"var(--fs-meta)",padding:"20px 0",opacity:.5}}>Sin leads</div>
-                  : sl.map(l=>(
-                    <div key={l.id} className="lead-card" onClick={()=>onOpen(l)}>
-                      <LeadLink lead={l} onOpen={onOpen}/>
-                      <div className="lead-meta"><SrcBadge source={l.source}/>{l.interes&&<span style={{color:AV.textDim}}>{l.interes}</span>}</div>
-                      {l.asesor&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:4}}>{l.asesor}</div>}
-                      <div className={`lead-timer ${timerClass(l.lastActivity)}`}>{stage.id==="nuevo"?`⏱ Hace ${timeAgo(l.created)}`:`Últ. ${timeAgo(l.lastActivity)}`}</div>
-                    </div>
-                  ))
-                }
-              </div>
-            );
-          })}
-        </div>
+      {/* Stage nav — todas las pantallas */}
+      <div className="pipeline-nav">
+        {ps.map((stage,i)=>{
+          const cnt=leads.filter(l=>l.stage===stage.id).length;
+          return(
+            <div key={stage.id}
+              className={`pipeline-tab${i===stageIdx?" active":""}${cnt===0?" pipeline-tab-empty":""}`}
+              onClick={()=>setStageIdx(i)}>
+              <div className="col-dot" style={{background:stage.dot}}/>
+              {stage.label}
+              <span className="pipeline-tab-count">{cnt}</span>
+            </div>
+          );
+        })}
       </div>
 
-      {/* ── MEDIUM DESKTOP / TABLET (768–1400px): tabs + single column ── */}
-      <div className="pipeline-tabs-layout">
-        <div className="pipeline-tabs-row">
-          {ps.map((stage,i)=>{
-            const cnt=leads.filter(l=>l.stage===stage.id).length;
-            return(
-              <div key={stage.id} className={`pipeline-tab${i===stageIdx?" active":""}${cnt===0?" pipeline-tab-empty":""}`} onClick={()=>setStageIdx(i)}>
-                <div className="col-dot" style={{background:stage.dot}}/>
-                {stage.label}
-                <span className="pipeline-tab-count">{cnt}</span>
-              </div>
-            );
-          })}
-        </div>
-        <div>
-          {curLeads.length===0
-            ? <div style={{textAlign:"center",color:AV.muted,fontSize:"var(--fs-meta)",padding:"40px 0",opacity:.5}}>Sin leads en este stage</div>
-            : curLeads.map(l=>(
-              <div key={l.id} className="lead-card" onClick={()=>onOpen(l)} style={{maxWidth:600}}>
+      {/* Cards del stage activo */}
+      {curLeads.length===0
+        ? <div className="pipeline-empty">Sin leads en este stage</div>
+        : <div className="pipeline-cards">
+            {curLeads.map(l=>(
+              <div key={l.id} className="lead-card" onClick={()=>onOpen(l)}>
                 <LeadLink lead={l} onOpen={onOpen}/>
-                <div className="lead-meta"><SrcBadge source={l.source}/>{l.interes&&<span style={{color:AV.textDim}}>{l.interes}</span>}</div>
+                <div className="lead-meta">
+                  <SrcBadge source={l.source}/>
+                  {l.interes&&<span style={{color:AV.textDim}}>{l.interes}</span>}
+                </div>
                 {l.asesor&&<div style={{fontSize:"var(--fs-meta)",color:AV.muted,marginTop:4}}>{l.asesor}</div>}
-                <div className={`lead-timer ${timerClass(curStage.id==="nuevo"?l.created:l.lastActivity)}`}>{curStage.id==="nuevo"?`⏱ Hace ${timeAgo(l.created)}`:`Últ. ${timeAgo(l.lastActivity)}`}</div>
+                <div className={`lead-timer ${timerClass(curStage.id==="nuevo"?l.created:l.lastActivity)}`}>
+                  {curStage.id==="nuevo"?`⏱ Hace ${timeAgo(l.created)}`:`Últ. ${timeAgo(l.lastActivity)}`}
+                </div>
               </div>
-            ))
-          }
-        </div>
-      </div>
-
-      {/* ── MOBILE (<768px): arrow navigator ── */}
-      <div className="pipeline-mobile">
-        <div className="pipeline-mob-nav">
-          <button className="pipeline-mob-btn" onClick={()=>setStageIdx(i=>i-1)} disabled={stageIdx===0}>←</button>
-          <div className="pipeline-mob-center">
-            <div className="pipeline-mob-title">
-              <div className="col-dot" style={{background:curStage?.dot}}/>
-              {curStage?.label}
-              <span style={{fontSize:"var(--fs-meta)",color:AV.muted,fontWeight:400}}>({curLeads.length})</span>
-            </div>
-            <div className="pipeline-mob-pos">{stageIdx+1} / {ps.length}</div>
-            <div className="pipeline-mob-dots">
-              {ps.map((_,i)=>(
-                <div key={i} className={`pipeline-mob-dot${i===stageIdx?" active":""}`} onClick={()=>setStageIdx(i)} style={{cursor:"pointer"}}/>
-              ))}
-            </div>
+            ))}
           </div>
-          <button className="pipeline-mob-btn" onClick={()=>setStageIdx(i=>i+1)} disabled={stageIdx===ps.length-1}>→</button>
-        </div>
-        <div className="pipeline-mob-cards">
-          {curLeads.length===0
-            ? <div className="pipeline-mob-empty">Sin leads en este stage</div>
-            : curLeads.map(l=>{
-                const urgent=timerClass(curStage.id==="nuevo"?l.created:l.lastActivity)==="timer-hot";
-                return(
-                  <div key={l.id} className="pipeline-mob-card" onClick={()=>onOpen(l)}>
-                    <div className="pipeline-mob-row">
-                      <LeadLink lead={l} onOpen={onOpen}/>
-                      {urgent&&<div className="pipeline-mob-urgency" title="Sin actividad reciente"/>}
-                    </div>
-                    <div className="lead-meta" style={{marginTop:3}}>
-                      <SrcBadge source={l.source}/>
-                      {l.asesor&&<span style={{color:AV.muted}}>{l.asesor}</span>}
-                    </div>
-                    <div className={`lead-timer ${timerClass(curStage.id==="nuevo"?l.created:l.lastActivity)}`} style={{marginTop:4}}>
-                      {curStage.id==="nuevo"?`Hace ${timeAgo(l.created)}`:`Últ. ${timeAgo(l.lastActivity)}`}
-                    </div>
-                  </div>
-                );
-              })
-          }
-        </div>
-      </div>
+      }
     </>
   );
 }
