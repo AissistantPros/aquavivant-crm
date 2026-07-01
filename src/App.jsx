@@ -3649,7 +3649,7 @@ export default function AquaVivantCRM(){
             </>
           ):(
             <>
-              <div className="sidebar-logo"><div className="logo-name">Aqua Vivant</div></div>
+              <div className="sidebar-logo"><div className="logo-name">AQUA VIVANT CRM</div></div>
               <nav className="sidebar-nav">
                 {navItems.map((item,i)=>item.s?<div key={i} className="nav-section"><div className="nav-label">{item.s}</div></div>:<div key={item.id} className={`nav-item ${view===item.id?"active":""}`} onClick={()=>{setView(item.id);if(isMobile)setShowMobileSidebar(false);}}><span className="nav-icon">{item.icon}</span>{item.label}{item.badge&&<span className="nav-badge">{item.badge}</span>}</div>)}
               </nav>
