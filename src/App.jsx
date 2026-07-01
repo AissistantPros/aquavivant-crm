@@ -163,8 +163,16 @@ const css = `
   .pipeline-tabs-layout{display:none;}
   .pipeline-mobile{display:none;}
   .pipeline-kanban-nav-btn{display:none;}
+  .pipeline-stage-nav{display:none;}
   @media(min-width:1401px){
     .pipeline-kanban-hdr{display:block;position:sticky;top:0;z-index:10;background:var(--bg-base);padding-bottom:4px;margin-bottom:0;}
+    .pipeline-stage-nav{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:8px;}
+    .pipeline-stage-nav::-webkit-scrollbar{display:none;}
+    .pipeline-stage-nav-pill{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-muted);font-size:var(--fs-meta);cursor:pointer;transition:all .15s;white-space:nowrap;opacity:.55;}
+    .pipeline-stage-nav-pill:hover{opacity:1;border-color:var(--accent-dim);color:var(--text-primary);}
+    .pipeline-stage-nav-pill.in-view{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);opacity:1;}
+    .pipeline-stage-nav-pill.in-view .pipeline-stage-nav-count{background:var(--accent-dim);color:var(--bg-base);}
+    .pipeline-stage-nav-count{font-size:11px;font-weight:600;background:var(--bg-deep);padding:1px 5px;border-radius:7px;}
     .pipeline-kanban-hdr-inner{display:flex;gap:12px;overflow:hidden;}
     .pipeline-kanban-hdr-col{min-width:200px;width:200px;max-width:220px;flex-shrink:0;background:var(--bg-surface);border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 10px;}
     .pipeline-kanban-hdr-col.pipeline-col-empty{opacity:.45;border-style:dashed;border-bottom:none;}
@@ -2028,17 +2036,19 @@ function AdminPipeline({leads,onOpen,setView}){
   const [stageIdx,setStageIdx]=useState(0);
   const [atEnd,setAtEnd]=useState(false);
   const [atStart,setAtStart]=useState(true);
+  const [kanbanScroll,setKanbanScroll]=useState({left:0,width:0});
   const scrollRef=useRef(null);
   const headerRef=useRef(null);
   const displayLeads=filterStage?leads.filter(l=>l.stage===filterStage):leads;
 
-  // Gradient + nav-button visibility tracker
+  // Gradient + nav-button + stage nav visibility tracker
   useLayoutEffect(()=>{
     const el=scrollRef.current;
     if(!el)return;
     const check=()=>{
       setAtEnd(el.scrollLeft+el.clientWidth>=el.scrollWidth-10);
       setAtStart(el.scrollLeft<=10);
+      setKanbanScroll({left:el.scrollLeft,width:el.clientWidth});
     };
     check();
     el.addEventListener('scroll',check,{passive:true});
@@ -2111,6 +2121,25 @@ function AdminPipeline({leads,onOpen,setView}){
 
       {/* ── LARGE DESKTOP (>1400px): sticky header + kanban board ── */}
       <div className="pipeline-kanban-hdr">
+        {/* Stage jump nav */}
+        <div className="pipeline-stage-nav">
+          {ps.map((stage,i)=>{
+            const cnt=leads.filter(l=>l.stage===stage.id).length;
+            const COL_W=212;
+            const colStart=i*COL_W;
+            const colEnd=colStart+200;
+            const inView=colStart<kanbanScroll.left+kanbanScroll.width&&colEnd>kanbanScroll.left;
+            return(
+              <div key={stage.id} className={`pipeline-stage-nav-pill${inView?" in-view":""}`}
+                onClick={()=>{if(scrollRef.current)scrollRef.current.scrollLeft=i*COL_W;}}>
+                <div className="col-dot" style={{background:stage.dot}}/>
+                {stage.label}
+                <span className="pipeline-stage-nav-count">{cnt}</span>
+              </div>
+            );
+          })}
+        </div>
+        {/* Column label row synced with scroll */}
         <div className="pipeline-kanban-hdr-inner" ref={headerRef}>
           {ps.map(stage=>{
             const cnt=leads.filter(l=>l.stage===stage.id).length;
