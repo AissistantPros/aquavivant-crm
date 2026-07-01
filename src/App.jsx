@@ -760,9 +760,13 @@ function UserProfileModal({user,onClose,onSave}){
 }
 
 // ── NUEVO LEAD ────────────────────────────────────────────────────────────────
-function NewLeadModal({onClose,onSave,asesores}){
+const normalizePhone=(p)=>(p||"").replace(/[\s\-\(\)\.\+]/g,"");
+
+function NewLeadModal({onClose,onSave,asesores,leads=[]}){
   const [f,setF]=useState({name:"",phone:"",source:"manual",asesor:"",campaign:"",interes:"",notes:""});
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  const normPhone=normalizePhone(f.phone);
+  const dupLead=normPhone.length>=7?leads.find(l=>normalizePhone(l.phone)===normPhone):null;
   return(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal slide-in" onClick={e=>e.stopPropagation()}>
@@ -770,10 +774,14 @@ function NewLeadModal({onClose,onSave,asesores}){
         <div className="modal-sub">Solo nombre y teléfono son obligatorios.</div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Nombre *</label><input className="form-input" placeholder="Nombre completo" value={f.name} onChange={e=>s("name",e.target.value)}/></div>
-          <div className="form-group"><label className="form-label">Teléfono *</label><input className="form-input" placeholder="10 dígitos" value={f.phone} onChange={e=>s("phone",e.target.value)}/></div>
+          <div className="form-group">
+            <label className="form-label">Teléfono *</label>
+            <input className="form-input" placeholder="10 dígitos" value={f.phone} onChange={e=>s("phone",e.target.value)} style={dupLead?{borderColor:"var(--warning)"}:{}}/>
+            {dupLead&&<div style={{marginTop:5,padding:"6px 10px",borderRadius:6,background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.35)",fontSize:"var(--fs-meta)",color:"var(--warning)"}}>⚠️ Ya existe un lead con este número: <strong>{dupLead.name}</strong> ({dupLead.stage})</div>}
+          </div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Fuente</label><select className="form-select" value={f.source} onChange={e=>s("source",e.target.value)}><option value="manual">Manual</option><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="whatsapp">WhatsApp</option><option value="meta">Meta Ads</option><option value="google">Google Ads</option><option value="web">Sitio Web</option><option value="tiktok">TikTok</option><option value="gmb">Google My Business</option><option value="broker">Broker</option><option value="manual">Manual</option></select></div>
+          <div className="form-group"><label className="form-label">Fuente</label><select className="form-select" value={f.source} onChange={e=>s("source",e.target.value)}><option value="manual">Manual</option><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="whatsapp">WhatsApp</option><option value="meta">Meta Ads</option><option value="google">Google Ads</option><option value="web">Sitio Web</option><option value="tiktok">TikTok</option><option value="gmb">Google My Business</option><option value="broker">Broker</option></select></div>
           <div className="form-group"><label className="form-label">Asignar a</label><select className="form-select" value={f.asesor} onChange={e=>s("asesor",e.target.value)}><option value="">Turno automático</option>{asesores.filter(a=>a.activo).map(a=><option key={a.id} value={a.name}>{a.name}</option>)}</select></div>
         </div>
         <div className="form-row">
@@ -2079,6 +2087,7 @@ function AdminPipeline({leads,onOpen}){
 function AdminLeads({leads,onOpen}){
   const [sortBy,setSortBy]=useState("entrada");
   const [sortDir,setSortDir]=useState("desc");
+  const [search,setSearch]=useState("");
   const toggleSort=(field)=>{
     if(sortBy===field){setSortDir(d=>d==="asc"?"desc":"asc");}else{setSortBy(field);setSortDir("asc");}
   };
@@ -2094,6 +2103,11 @@ function AdminLeads({leads,onOpen}){
     if(typeof av==="string"){return sortDir==="asc"?av.localeCompare(bv):bv.localeCompare(av);}
     return sortDir==="asc"?av-bv:bv-av;
   });
+  const q=search.trim();
+  const visibleLeads=q?sortedLeads.filter(l=>
+    l.name.toLowerCase().includes(q.toLowerCase())||
+    normalizePhone(l.phone).includes(normalizePhone(q))
+  ):sortedLeads;
   const ThHeader=({label,field})=>(
     <th style={{cursor:"pointer",userSelect:"none"}} onClick={()=>toggleSort(field)}>
       {label} {sortBy===field?<span style={{color:AV.teal}}>{sortDir==="asc"?"↑":"↓"}</span>:""}
@@ -2101,14 +2115,22 @@ function AdminLeads({leads,onOpen}){
   );
   return(
     <div className="panel">
-      <div className="panel-header"><div className="panel-title">Todos los leads — {leads.length} registros</div></div>
+      <div className="panel-header">
+        <div className="panel-title">Todos los leads — {visibleLeads.length}{q&&visibleLeads.length!==leads.length?` de ${leads.length}`:""} registros</div>
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
+          <div style={{position:"relative"}}>
+            <input className="form-input" placeholder="Buscar nombre o teléfono…" value={search} onChange={e=>setSearch(e.target.value)} style={{width:220,fontSize:"var(--fs-meta)",paddingRight:search?"32px":"12px"}}/>
+            {search&&<button onClick={()=>setSearch("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:AV.muted,cursor:"pointer",fontSize:13,padding:0,lineHeight:1}}>✕</button>}
+          </div>
+        </div>
+      </div>
 
       {/* Desktop: tabla con sort */}
       <div className="panel-body leads-table-wrap" style={{padding:0}}>
         <table>
           <thead><tr><ThHeader label="Lead" field="nombre"/><ThHeader label="Fuente" field="fuente"/><ThHeader label="Interés" field="interes"/><ThHeader label="Estado" field="estado"/><ThHeader label="Asesor" field="asesor"/><ThHeader label="Entrada" field="entrada"/><ThHeader label="Últ. actividad" field="actividad"/></tr></thead>
           <tbody>
-            {sortedLeads.map(l=>(
+            {visibleLeads.map(l=>(
               <tr key={l.id} style={{cursor:"pointer"}} onClick={()=>onOpen(l)}>
                 <td><LeadLink lead={l} onOpen={onOpen}/><div style={{fontSize:"var(--fs-meta)",color:AV.muted}}>{l.phone}</div></td>
                 <td><SrcBadge source={l.source}/></td>
@@ -2125,7 +2147,7 @@ function AdminLeads({leads,onOpen}){
 
       {/* Móvil: cards */}
       <div className="leads-cards-mob">
-        {sortedLeads.map(l=>(
+        {visibleLeads.map(l=>(
           <div key={l.id} className="leads-mob-card" onClick={()=>onOpen(l)}>
             <div className="leads-mob-row">
               <div>
@@ -3278,7 +3300,7 @@ export default function AquaVivantCRM(){
           <div className="topbar">
             {isMobile?(
               <>
-                <div className="topbar-title" style={{flex:1,marginLeft:0,fontSize:18}}>{titles[view]||"Aqua Vivant"}</div>
+                <div className="topbar-title" style={{flex:1,marginLeft:0,fontSize:16,letterSpacing:"0.04em"}}>AQUA VIVANT CRM</div>
                 {role==="admin"&&<button className="btn btn-primary" onClick={()=>setShowNewLead(true)} style={{minWidth:44,minHeight:44,padding:"6px 10px"}}>➕</button>}
                 {role==="broker"&&<button className="btn btn-primary" onClick={()=>setShowBrokerNewLead(true)} style={{minWidth:44,minHeight:44,padding:"6px 10px"}}>➕</button>}
                 <button className="theme-toggle" onClick={toggleTheme} title={theme==="dark"?"Cambiar a tema claro":"Cambiar a tema oscuro"}>{theme==="dark"?"☀️":"🌙"}</button>
@@ -3312,7 +3334,7 @@ export default function AquaVivantCRM(){
             </>)}
           </div>
         </main>
-        {showNewLead&&role==="admin"&&<NewLeadModal onClose={()=>setShowNewLead(false)} onSave={addLead} asesores={asesores}/>}
+        {showNewLead&&role==="admin"&&<NewLeadModal onClose={()=>setShowNewLead(false)} onSave={addLead} asesores={asesores} leads={leads}/>}
         {showBrokerNewLead&&role==="broker"&&<BrokerNewLeadModal onClose={()=>setShowBrokerNewLead(false)} onSave={addLeadAsBroker}/>}
         {ficha&&<FichaModal lead={ficha} onClose={()=>setFicha(null)} asesores={asesores} onReassign={handleReassignLead}/>}
         {showProfileModal&&<UserProfileModal user={currentUser} onClose={()=>{setShowProfileModal(false);if(isMobile)setShowMobileSidebar(false);}} onSave={async(data)=>{await updateOwnProfile(currentUser.id,data);setCurrentUser(p=>({...p,...data}));}}/>}
