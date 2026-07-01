@@ -170,6 +170,19 @@ const css = `
     .pipeline-tab-count{padding:1px 5px;}
     .pipeline-cards{grid-template-columns:1fr;}
   }
+  .leads-table-wrap{display:block;}
+  .leads-cards-mob{display:none;}
+  @media(max-width:640px){
+    .leads-table-wrap{display:none;}
+    .leads-cards-mob{display:flex;flex-direction:column;gap:8px;padding:12px;}
+    .leads-mob-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s;}
+    .leads-mob-card:hover{border-color:var(--accent-dim);}
+    .leads-mob-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;}
+    .leads-mob-name{font-size:var(--fs-meta);font-weight:500;color:var(--accent);}
+    .leads-mob-phone{font-size:var(--fs-meta);color:var(--text-muted);margin-top:2px;}
+    .leads-mob-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;}
+    .leads-mob-footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:var(--fs-meta);color:var(--text-muted);}
+  }
   .tasks-list{display:flex;flex-direction:column;gap:8px;}
   .task-item{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s;display:flex;gap:14px;align-items:flex-start;}
   .task-item:hover{border-color:var(--border-light);}
@@ -2089,7 +2102,9 @@ function AdminLeads({leads,onOpen}){
   return(
     <div className="panel">
       <div className="panel-header"><div className="panel-title">Todos los leads — {leads.length} registros</div></div>
-      <div className="panel-body" style={{padding:0}}>
+
+      {/* Desktop: tabla con sort */}
+      <div className="panel-body leads-table-wrap" style={{padding:0}}>
         <table>
           <thead><tr><ThHeader label="Lead" field="nombre"/><ThHeader label="Fuente" field="fuente"/><ThHeader label="Interés" field="interes"/><ThHeader label="Estado" field="estado"/><ThHeader label="Asesor" field="asesor"/><ThHeader label="Entrada" field="entrada"/><ThHeader label="Últ. actividad" field="actividad"/></tr></thead>
           <tbody>
@@ -2106,6 +2121,29 @@ function AdminLeads({leads,onOpen}){
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Móvil: cards */}
+      <div className="leads-cards-mob">
+        {sortedLeads.map(l=>(
+          <div key={l.id} className="leads-mob-card" onClick={()=>onOpen(l)}>
+            <div className="leads-mob-row">
+              <div>
+                <div className="leads-mob-name"><LeadLink lead={l} onOpen={onOpen}/></div>
+                <div className="leads-mob-phone">{l.phone}</div>
+              </div>
+              <StageChip stage={l.stage}/>
+            </div>
+            <div className="leads-mob-meta">
+              <SrcBadge source={l.source}/>
+              {l.interes&&<span style={{fontSize:"var(--fs-meta)",color:AV.textDim}}>{l.interes}</span>}
+            </div>
+            <div className="leads-mob-footer">
+              <span>{l.asesor||<span style={{color:AV.rose}}>Sin asignar</span>}</span>
+              <span>Entrada: {timeAgo(l.created)}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
