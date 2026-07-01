@@ -2507,7 +2507,7 @@ function ChatPanel({currentUser,isAdmin}){
     const channel=supabase
       .channel(`chat-${activeConvId}`)
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:`conversation_id=eq.${activeConvId}`},(payload)=>{
-        setMessages(prev=>[...prev,{...payload.new}]);
+        setMessages(prev=>prev.find(m=>m.id===payload.new.id)?prev:[...prev,{...payload.new}]);
         markMessagesRead(activeConvId).catch(()=>{});
       })
       .subscribe();
