@@ -166,7 +166,9 @@ const css = `
   .pipeline-empty{text-align:center;color:var(--text-muted);font-size:var(--fs-meta);padding:48px 0;opacity:.55;}
   @media(max-width:640px){
     .pipeline-fuera-label{display:none;}
-    .pipeline-tab{padding:5px 10px;font-size:11px;gap:4px;}
+    .pipeline-nav{overflow-x:visible;flex-wrap:wrap;position:static;}
+    .pipeline-tab{padding:4px 9px;font-size:11px;gap:3px;}
+    .pipeline-tab-count{padding:1px 5px;}
     .pipeline-cards{grid-template-columns:1fr;}
   }
   .tasks-list{display:flex;flex-direction:column;gap:8px;}
